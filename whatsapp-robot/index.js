@@ -396,6 +396,9 @@ async function startWhatsApp() {
         if (['isLogged', 'qrReadSuccess', 'inChat'].includes(statusSession)) {
           connected = true;
           qrImage = null;
+        } else if (/not.?logged|disconnected|desconnected|unpaired|unlaunched|qr|close|error|delete.?token/i.test(authState)) {
+          connected = false;
+          connectedAt = null;
         }
         queueConnectionSync();
         console.log(`🔐 Estado WhatsApp: ${authState}`);
