@@ -446,7 +446,9 @@ async function handleRobotConnectionCommand(request, env) {
   try {
     const command = JSON.parse(raw);
     const after = safeText(new URL(request.url).searchParams.get("after"), 80);
-    return json({ command: command?.id && command.id !== after ? command : null });
+    if (!command?.id) return json({ command: null });
+    await env.PROMOTIONS.delete(ROBOT_CONNECTION_COMMAND_KEY);
+    return json({ command: command.id !== after ? command : null });
   } catch {
     return json({ command: null });
   }
