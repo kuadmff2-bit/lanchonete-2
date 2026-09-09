@@ -369,7 +369,9 @@ commandPollTimer.unref();
 
 function removeChromiumLocks() {
   const names = new Set(['SingletonLock', 'SingletonSocket', 'SingletonCookie']);
-  const pending = [TOKEN_DIR];
+  const sessionDir = sessionTokenTargets()[0];
+  if (!fs.existsSync(sessionDir)) return;
+  const pending = [sessionDir];
   try {
     while (pending.length) {
       const current = pending.pop();

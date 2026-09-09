@@ -28,6 +28,7 @@ function startInstance(instance) {
       DISABLE_HTTP_SERVER: '1',
       ROBOT_SUPERVISED: '1',
     },
+    detached: process.platform !== 'win32',
     stdio: ['inherit', 'inherit', 'inherit', 'ipc'],
   });
 
@@ -35,9 +36,21 @@ function startInstance(instance) {
   console.log(`🚀 Iniciando ${instance.name}.`);
   child.on('exit', (code, signal) => {
     children.delete(instance.name);
+    terminateProcessTree(child, 'SIGKILL');
     console.warn(`⚠️ ${instance.name} encerrou (${signal || code || 0}).`);
     if (!shuttingDown) setTimeout(() => startInstance(instance), 5000).unref();
   });
+}
+
+function terminateProcessTree(child, signal) {
+  if (!child?.pid) return;
+  if (process.platform !== 'win32') {
+    try {
+      process.kill(-child.pid, signal);
+      return;
+    } catch (_) {}
+  }
+  try { child.kill(signal); } catch (_) {}
 }
 
 for (const [index, instance] of instances.entries()) {
@@ -77,7 +90,7 @@ server.listen(PORT, '0.0.0.0', () => {
 function stop(signal) {
   shuttingDown = true;
   for (const timer of startupTimers) clearTimeout(timer);
-  for (const child of children.values()) child.kill(signal);
+  for (const child of children.values()) terminateProcessTree(child, signal);
   server.close(() => process.exit(0));
   setTimeout(() => process.exit(0), 5000).unref();
 }
