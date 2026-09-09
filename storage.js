@@ -1,59 +1,62 @@
-let readyBinding = null;
-let readyPromise = null;
-
-const CREATE_STORAGE_TABLE = `
-  CREATE TABLE IF NOT EXISTS app_storage (
-    storage_key TEXT PRIMARY KEY,
-    value TEXT NOT NULL,
-    expires_at INTEGER,
-    updated_at INTEGER NOT NULL,
-    deleted INTEGER NOT NULL DEFAULT 0
-  )
-`;
+const STORAGE_OBJECT_NAME = "lanchonete-app";
 
 function cleanKey(key) {
   return String(key || "").trim().slice(0, 512);
 }
 
-async function ensureD1(env) {
-  if (!env.APP_DB) return false;
-  if (readyBinding !== env.APP_DB || !readyPromise) {
-    readyBinding = env.APP_DB;
-    readyPromise = env.APP_DB.prepare(CREATE_STORAGE_TABLE).run().catch((error) => {
-      readyPromise = null;
-      throw error;
-    });
+function durableStorageStub(env) {
+  if (!env.APP_STORAGE) return null;
+  const id = env.APP_STORAGE.idFromName(STORAGE_OBJECT_NAME);
+  return env.APP_STORAGE.get(id);
+}
+
+async function durableStorageRequest(env, method, key, body) {
+  const stub = durableStorageStub(env);
+  if (!stub) return null;
+
+  const response = await stub.fetch(
+    new Request(`https://app-storage.internal/value?key=${encodeURIComponent(key)}`, {
+      method,
+      headers: body === undefined ? undefined : { "content-type": "application/json" },
+      body: body === undefined ? undefined : JSON.stringify(body)
+    })
+  );
+
+  if (!response.ok) {
+    const detail = await response.text().catch(() => "");
+    throw new Error(`Falha no armazenamento persistente (${response.status})${detail ? `: ${detail.slice(0, 180)}` : "."}`);
   }
-  await readyPromise;
-  return true;
+
+  return response.status === 204 ? null : response.json();
+}
+
+function canMigrateLegacyValue(key) {
+  return !(
+    key.startsWith("admin-session:")
+    || key.startsWith("robot-session:")
+    || key.startsWith("order-dedupe:")
+    || key === "fcm-access-token-cache"
+    || key === "robot-connection-state"
+    || key === "robot-connection-command"
+  );
 }
 
 export function storageConfigured(env) {
-  return Boolean(env.APP_DB || env.PROMOTIONS);
+  return Boolean(env.APP_STORAGE || env.PROMOTIONS);
 }
 
 export async function storageGet(env, key) {
   const storageKey = cleanKey(key);
   if (!storageKey) return null;
 
-  if (env.APP_DB) {
-    await ensureD1(env);
-    const row = await env.APP_DB
-      .prepare("SELECT value, expires_at, deleted FROM app_storage WHERE storage_key = ?1")
-      .bind(storageKey)
-      .first();
+  if (env.APP_STORAGE) {
+    const result = await durableStorageRequest(env, "GET", storageKey);
+    if (result?.found) return result.deleted ? null : String(result.value ?? "");
 
-    if (row) {
-      if (Number(row.deleted || 0) === 1) return null;
-      const expiresAt = Number(row.expires_at || 0);
-      if (expiresAt > 0 && expiresAt <= Date.now()) return null;
-      return String(row.value ?? "");
-    }
-
-    if (env.PROMOTIONS) {
+    if (env.PROMOTIONS && canMigrateLegacyValue(storageKey)) {
       const legacy = await env.PROMOTIONS.get(storageKey);
       if (legacy !== null) {
-        try { await storagePut(env, storageKey, legacy); } catch (_) {}
+        await storagePut(env, storageKey, legacy);
         return legacy;
       }
     }
@@ -67,22 +70,13 @@ export async function storagePut(env, key, value, options = {}) {
   const storageKey = cleanKey(key);
   if (!storageKey) throw new Error("Chave de armazenamento inválida.");
 
-  if (env.APP_DB) {
-    await ensureD1(env);
-    const ttlSeconds = Number(options?.expirationTtl || 0);
-    const expiresAt = ttlSeconds > 0 ? Date.now() + ttlSeconds * 1000 : null;
-    await env.APP_DB
-      .prepare(`
-        INSERT INTO app_storage (storage_key, value, expires_at, updated_at, deleted)
-        VALUES (?1, ?2, ?3, ?4, 0)
-        ON CONFLICT(storage_key) DO UPDATE SET
-          value = excluded.value,
-          expires_at = excluded.expires_at,
-          updated_at = excluded.updated_at,
-          deleted = 0
-      `)
-      .bind(storageKey, String(value ?? ""), expiresAt, Date.now())
-      .run();
+  if (env.APP_STORAGE) {
+    const ttlSeconds = Math.max(0, Number(options?.expirationTtl || 0));
+    const expiresAt = ttlSeconds > 0 ? Date.now() + ttlSeconds * 1000 : 0;
+    await durableStorageRequest(env, "PUT", storageKey, {
+      value: String(value ?? ""),
+      expiresAt
+    });
     return;
   }
 
@@ -94,23 +88,10 @@ export async function storageDelete(env, key) {
   const storageKey = cleanKey(key);
   if (!storageKey) return;
 
-  if (env.APP_DB) {
-    await ensureD1(env);
-    await env.APP_DB
-      .prepare(`
-        INSERT INTO app_storage (storage_key, value, expires_at, updated_at, deleted)
-        VALUES (?1, '', NULL, ?2, 1)
-        ON CONFLICT(storage_key) DO UPDATE SET
-          value = '',
-          expires_at = NULL,
-          updated_at = excluded.updated_at,
-          deleted = 1
-      `)
-      .bind(storageKey, Date.now())
-      .run();
+  if (env.APP_STORAGE) {
+    await durableStorageRequest(env, "DELETE", storageKey);
     return;
   }
 
   if (env.PROMOTIONS) await env.PROMOTIONS.delete(storageKey);
 }
-

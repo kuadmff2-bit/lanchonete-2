@@ -1,4 +1,5 @@
 import worker from "./worker-fcm.js";
+export { AppStorage } from "./durable-storage.js";
 
 const ADMIN_APP_MARKER = "LanchoneteAdminApp/";
 

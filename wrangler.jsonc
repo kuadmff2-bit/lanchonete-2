@@ -18,11 +18,20 @@
       "binding": "PROMOTIONS"
     }
   ],
-  "d1_databases": [
-    {
-      "binding": "APP_DB"
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "APP_STORAGE",
+        "class_name": "AppStorage"
+      }
+    ]
+  },
+  "exports": {
+    "AppStorage": {
+      "type": "durable-object",
+      "storage": "sqlite"
     }
-  ],
+  },
   "assets": {
     "directory": ".",
     "binding": "ASSETS",

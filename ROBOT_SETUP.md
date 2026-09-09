@@ -92,4 +92,4 @@ Variáveis do Worker/Cloudflare:
 
 No modo supervisionado, o QR fica somente na memória do serviço e o Worker o consulta diretamente depois de validar a senha administrativa. Isso evita gravações contínuas no KV. Configure `ROBOT_CONTROL_TOKEN` com o mesmo valor da senha administrativa forte usada pelo painel; o Worker reutiliza essa credencial apenas na chamada servidor-servidor. O navegador e o APK nunca recebem `ROBOT_WEBHOOK_TOKEN`. Cada lanchonete deve usar uma sessão e segredos próprios para não misturar contas ou pedidos.
 
-O binding D1 `APP_DB` é o armazenamento principal para sessões, pedidos e configurações mutáveis. Na primeira leitura, valores antigos do KV `PROMOTIONS` são migrados automaticamente, preservando cardápio, promoção, contato e histórico existentes.
+O Durable Object SQLite `APP_STORAGE` é o armazenamento principal para sessões, pedidos e configurações mutáveis. Na primeira leitura, valores permanentes antigos do KV `PROMOTIONS` são migrados automaticamente, preservando cardápio, promoção, contato e histórico existentes. Sessões e caches temporários recomeçam limpos por segurança.
