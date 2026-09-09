@@ -53,6 +53,25 @@ function getAdminAppToken() {
 
 window.getAdminAppToken = getAdminAppToken;
 
+function runningInsideAdminApp() {
+  return Boolean(getAdminAppToken());
+}
+
+function lockPasswordlessAppUi() {
+  const token = getAdminAppToken();
+  if (!token) return;
+
+  adminAppToken = token;
+  document.documentElement.dataset.adminApp = "true";
+
+  const loginPanel = $("#loginPanel");
+  const logoutButton = $("#logoutButton");
+  if (loginPanel) loginPanel.hidden = true;
+  if (logoutButton) logoutButton.hidden = true;
+}
+
+lockPasswordlessAppUi();
+
 async function api(url, options = {}) {
   const headers = { ...(options.headers || {}) };
   if (adminAppToken) headers["x-admin-app-token"] = adminAppToken;
@@ -93,6 +112,7 @@ $("#loginForm").addEventListener("submit", (event) => {
 });
 
 $("#logoutButton").addEventListener("click", () => {
+  if (runningInsideAdminApp()) return;
   adminPassword = "";
   $("#loginPassword").value = "";
   $("#adminApp").hidden = true;
