@@ -29,6 +29,7 @@ let lastCommandId = '';
 let lastBridgeWarningAt = 0;
 
 fs.mkdirSync(TOKEN_DIR, { recursive: true });
+lastCommandId = loadLastCommandId();
 
 function publicDomain() {
   return process.env.RAILWAY_PUBLIC_DOMAIN ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}` : `http://localhost:${PORT}`;
@@ -169,6 +170,7 @@ async function pollConnectionCommand() {
     const command = data?.command;
     if (!command?.id || command.id === lastCommandId) return;
     lastCommandId = String(command.id);
+    rememberLastCommandId(lastCommandId);
     if (command.action === 'reset' || command.action === 'restart') {
       const clearSession = command.action === 'reset';
       if (SUPERVISED) {
@@ -202,6 +204,25 @@ function controlAuthorized(req) {
   const suppliedBuffer = Buffer.from(supplied);
   return expectedBuffer.length === suppliedBuffer.length
     && crypto.timingSafeEqual(expectedBuffer, suppliedBuffer);
+}
+
+function commandMarkerPath() {
+  const resolvedRoot = path.resolve(TOKEN_DIR);
+  const filesystemRoot = path.parse(resolvedRoot).root;
+  const safeSession = SESSION_NAME.replace(/[^a-zA-Z0-9._-]/g, '_');
+  if (!safeSession || resolvedRoot === filesystemRoot || resolvedRoot === '/app' || resolvedRoot.length < filesystemRoot.length + 4) {
+    throw new Error('WPP_TOKEN_PATH aponta para um diretório inseguro.');
+  }
+  return path.join(resolvedRoot, `.${safeSession}.last-command`);
+}
+
+function loadLastCommandId() {
+  try { return fs.readFileSync(commandMarkerPath(), 'utf8').trim().slice(0, 80); }
+  catch { return ''; }
+}
+
+function rememberLastCommandId(commandId) {
+  fs.writeFileSync(commandMarkerPath(), String(commandId || '').slice(0, 80), { mode: 0o600 });
 }
 
 function sessionTokenTargets() {
