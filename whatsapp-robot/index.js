@@ -197,21 +197,22 @@ function controlAuthorized(req) {
     && crypto.timingSafeEqual(expectedBuffer, suppliedBuffer);
 }
 
-function assertSafeTokenDirectory() {
-  const resolved = path.resolve(TOKEN_DIR);
-  const root = path.parse(resolved).root;
-  if (resolved === root || resolved === '/app' || resolved.length < root.length + 4) {
+function sessionTokenTargets() {
+  const resolvedRoot = path.resolve(TOKEN_DIR);
+  const filesystemRoot = path.parse(resolvedRoot).root;
+  const safeSession = SESSION_NAME.replace(/[^a-zA-Z0-9._-]/g, '_');
+  if (!safeSession || resolvedRoot === filesystemRoot || resolvedRoot === '/app' || resolvedRoot.length < filesystemRoot.length + 4) {
     throw new Error('WPP_TOKEN_PATH aponta para um diretório inseguro.');
   }
-  return resolved;
+  return [
+    path.join(resolvedRoot, safeSession),
+    path.join(resolvedRoot, `${safeSession}.data.json`),
+  ];
 }
 
 function clearStoredSession() {
-  const resolved = assertSafeTokenDirectory();
-  fs.mkdirSync(resolved, { recursive: true });
-  for (const entry of fs.readdirSync(resolved)) {
-    fs.rmSync(path.join(resolved, entry), { recursive: true, force: true });
-  }
+  fs.mkdirSync(path.resolve(TOKEN_DIR), { recursive: true });
+  for (const target of sessionTokenTargets()) fs.rmSync(target, { recursive: true, force: true });
 }
 
 async function stopWhatsApp({ logout = false, clearSession = false } = {}) {
@@ -325,11 +326,13 @@ const server = http.createServer(async (req, res) => {
   res.end('Not found');
 });
 
-server.listen(PORT, '0.0.0.0', () => {
-  console.log(`🌐 Health: ${publicDomain()}/health`);
-  console.log(`🔐 QR seguro: ${publicDomain()}/qr/${QR_ACCESS_TOKEN}`);
-  queueConnectionSync();
-});
+if (process.env.DISABLE_HTTP_SERVER !== '1') {
+  server.listen(PORT, '0.0.0.0', () => {
+    console.log(`🌐 Health: ${publicDomain()}/health`);
+    console.log(`🔐 QR seguro: ${publicDomain()}/qr/${QR_ACCESS_TOKEN}`);
+    queueConnectionSync();
+  });
+}
 
 const connectionSyncTimer = setInterval(syncConnectionState, 5000);
 const commandPollTimer = setInterval(pollConnectionCommand, 3000);

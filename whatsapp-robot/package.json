@@ -5,8 +5,9 @@
   "description": "Ponte 24h entre WhatsApp e o motor de pedidos do cardápio digital.",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js",
-    "check": "node --check index.js"
+    "start": "node multi-runner.js",
+    "start:single": "node index.js",
+    "check": "node --check index.js && node --check multi-runner.js"
   },
   "engines": {
     "node": ">=20.0.0"
