@@ -4,6 +4,7 @@ const { fork } = require('child_process');
 
 const PORT = Number(process.env.PORT || 3000);
 const children = new Map();
+const startupTimers = [];
 let shuttingDown = false;
 
 function readInstances() {
@@ -38,7 +39,15 @@ function startInstance(instance) {
   });
 }
 
-for (const instance of instances) startInstance(instance);
+for (const [index, instance] of instances.entries()) {
+  if (index === 0) {
+    startInstance(instance);
+    continue;
+  }
+  startupTimers.push(setTimeout(() => {
+    if (!shuttingDown) startInstance(instance);
+  }, index * 12000));
+}
 
 const server = http.createServer((req, res) => {
   const url = new URL(req.url, 'http://localhost');
@@ -66,6 +75,7 @@ server.listen(PORT, '0.0.0.0', () => {
 
 function stop(signal) {
   shuttingDown = true;
+  for (const timer of startupTimers) clearTimeout(timer);
   for (const child of children.values()) child.kill(signal);
   server.close(() => process.exit(0));
   setTimeout(() => process.exit(0), 5000).unref();
