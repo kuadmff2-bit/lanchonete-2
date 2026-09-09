@@ -22,9 +22,9 @@ import android.widget.FrameLayout;
 import android.widget.Toast;
 
 public class MainActivity extends Activity {
-    private static final String ADMIN_URL = "https://lanchonete-2.kuadmff2.workers.dev/admin?v=20260909-1";
+    private static final String ADMIN_URL = "https://lanchonete-2.kuadmff2.workers.dev/admin?v=20260909-2";
     private static final String ALLOWED_HOST = "lanchonete-2.kuadmff2.workers.dev";
-    private static final String APP_USER_AGENT = "LanchoneteAdminApp/2.1-l2";
+    private static final String APP_USER_AGENT = "LanchoneteAdminApp/2.2-l2";
     private static final int FILE_CHOOSER_REQUEST = 4102;
     private static final long MIN_SPLASH_MS = 700L;
     private static final int READY_MAX_ATTEMPTS = 180;
@@ -126,8 +126,8 @@ public class MainActivity extends Activity {
             public void onPageFinished(WebView view, String url) {
                 super.onPageFinished(view, url);
                 if (url != null && url.contains("/admin")) {
+                    configurePasswordlessUi();
                     restoreAdminSession();
-                    installLogoutHook();
                     installOrderButtonsFallback();
                     waitForAdminReady(0);
                 }
@@ -253,16 +253,15 @@ public class MainActivity extends Activity {
         }, delay);
     }
 
-    private void installLogoutHook() {
+    private void configurePasswordlessUi() {
         if (webView == null) return;
 
         String script = "(()=>{" +
+                "document.documentElement.dataset.adminApp='true';" +
+                "const login=document.querySelector('#loginPanel');" +
                 "const b=document.querySelector('#logoutButton');" +
-                "if(!b||b.dataset.appLogoutHook==='1')return;" +
-                "b.dataset.appLogoutHook='1';" +
-                "b.addEventListener('click',()=>{" +
-                "fetch('/api/logout',{method:'POST',credentials:'include',keepalive:true}).catch(()=>{});" +
-                "});" +
+                "if(login)login.hidden=true;" +
+                "if(b)b.hidden=true;" +
                 "})();";
 
         webView.evaluateJavascript(script, null);
