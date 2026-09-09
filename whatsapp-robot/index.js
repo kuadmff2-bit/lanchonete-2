@@ -475,6 +475,10 @@ async function startWhatsApp() {
     authState = 'error';
     queueConnectionSync();
     console.error('❌ Erro ao iniciar WhatsApp:', lastError);
+    if (SUPERVISED) {
+      await syncConnectionState();
+      process.exit(1);
+    }
     scheduleReconnect();
   } finally {
     starting = false;
