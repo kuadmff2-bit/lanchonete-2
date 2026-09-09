@@ -412,6 +412,20 @@ function normalizeQrImage(value) {
   return image.startsWith('data:image') ? image : `data:image/png;base64,${image}`;
 }
 
+async function waitForClientReady(client, timeoutMs = 45000) {
+  let timeout;
+  try {
+    await Promise.race([
+      client.waitForPageLoad(),
+      new Promise((_, reject) => {
+        timeout = setTimeout(() => reject(new Error('Tempo esgotado ao preparar o WhatsApp Web.')), timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timeout) clearTimeout(timeout);
+  }
+}
+
 async function refreshClientState() {
   if (!clientRef || clientWatchRunning) return;
   const client = clientRef;
@@ -532,6 +546,7 @@ async function startWhatsApp() {
       }
       queueConnectionSync();
     });
+    await waitForClientReady(client);
     await refreshClientState();
     if (!connected) console.log('📲 Cliente pronto. Aguardando leitura do QR Code.');
   } catch (error) {
