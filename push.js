@@ -1,3 +1,5 @@
+import { storageConfigured, storageGet, storagePut } from "./storage.js";
+
 const PUSH_TOKENS_KEY = "admin-push-tokens";
 const FCM_TOKEN_CACHE_KEY = "fcm-access-token-cache";
 const FCM_SCOPE = "https://www.googleapis.com/auth/firebase.messaging";
@@ -14,8 +16,8 @@ function safePushToken(value) {
 }
 
 async function readPushTokens(env) {
-  if (!env.PROMOTIONS) return [];
-  const raw = await env.PROMOTIONS.get(PUSH_TOKENS_KEY);
+  if (!storageConfigured(env)) return [];
+  const raw = await storageGet(env, PUSH_TOKENS_KEY);
   try {
     const parsed = raw ? JSON.parse(raw) : [];
     if (!Array.isArray(parsed)) return [];
@@ -28,7 +30,7 @@ async function readPushTokens(env) {
 }
 
 async function writePushTokens(env, entries) {
-  if (!env.PROMOTIONS) return;
+  if (!storageConfigured(env)) return;
   const unique = [];
   const seen = new Set();
   for (const entry of entries) {
@@ -38,11 +40,11 @@ async function writePushTokens(env, entries) {
     unique.push({ token, updatedAt: String(entry?.updatedAt || new Date().toISOString()) });
     if (unique.length >= 8) break;
   }
-  await env.PROMOTIONS.put(PUSH_TOKENS_KEY, JSON.stringify(unique));
+  await storagePut(env, PUSH_TOKENS_KEY, JSON.stringify(unique));
 }
 
 export async function handlePushRegistration(request, env) {
-  if (!env.PROMOTIONS) {
+  if (!storageConfigured(env)) {
     return new Response(JSON.stringify({ error: "Armazenamento não configurado." }), {
       status: 500,
       headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" }
@@ -152,8 +154,8 @@ async function createSignedJwt(env) {
 async function getAccessToken(env) {
   if (!pushConfigured(env)) return "";
 
-  if (env.PROMOTIONS) {
-    const cachedRaw = await env.PROMOTIONS.get(FCM_TOKEN_CACHE_KEY);
+  if (storageConfigured(env)) {
+    const cachedRaw = await storageGet(env, FCM_TOKEN_CACHE_KEY);
     try {
       const cached = cachedRaw ? JSON.parse(cachedRaw) : null;
       if (cached?.token && Number(cached.expiresAt || 0) > Date.now() + 60000) return cached.token;
@@ -177,8 +179,8 @@ async function getAccessToken(env) {
 
   const expiresIn = Math.max(300, Number(data.expires_in || 3600));
   const cached = { token: data.access_token, expiresAt: Date.now() + expiresIn * 1000 };
-  if (env.PROMOTIONS) {
-    await env.PROMOTIONS.put(FCM_TOKEN_CACHE_KEY, JSON.stringify(cached), {
+  if (storageConfigured(env)) {
+    await storagePut(env, FCM_TOKEN_CACHE_KEY, JSON.stringify(cached), {
       expirationTtl: Math.max(300, Math.min(3500, expiresIn - 60))
     });
   }
@@ -231,7 +233,7 @@ async function sendToDevice(env, accessToken, token, order) {
 }
 
 export async function notifyNewOrder(env, order) {
-  if (!pushConfigured(env) || !env.PROMOTIONS || !order?.id) return { sent: 0, skipped: true };
+  if (!pushConfigured(env) || !storageConfigured(env) || !order?.id) return { sent: 0, skipped: true };
 
   const entries = await readPushTokens(env);
   if (!entries.length) return { sent: 0, skipped: true };

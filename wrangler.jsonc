@@ -18,6 +18,11 @@
       "binding": "PROMOTIONS"
     }
   ],
+  "d1_databases": [
+    {
+      "binding": "APP_DB"
+    }
+  ],
   "assets": {
     "directory": ".",
     "binding": "ASSETS",

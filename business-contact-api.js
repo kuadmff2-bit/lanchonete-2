@@ -1,3 +1,5 @@
+import { storageConfigured, storageGet, storagePut } from "./storage.js";
+
 const DEFAULT_WHATSAPP_NUMBER = "5592992973832";
 const CONTACT_KEY = "business-contact";
 
@@ -26,11 +28,25 @@ function formatWhatsAppNumber(value) {
   return `(${ddd}) ${number.slice(0, 4)}-${number.slice(4)}`;
 }
 
+async function sha256Hex(value) {
+  const bytes = new TextEncoder().encode(String(value || ""));
+  const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", bytes));
+  return [...digest].map((byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+async function adminPasswordMatches(value, env) {
+  const supplied = String(value || "");
+  if (!supplied) return false;
+  if (env.ADMIN_PASSWORD && supplied === String(env.ADMIN_PASSWORD)) return true;
+  const expectedHash = String(env.ADMIN_PASSWORD_SHA256 || "").trim().toLowerCase();
+  return /^[0-9a-f]{64}$/.test(expectedHash) && await sha256Hex(supplied) === expectedHash;
+}
+
 async function readContact(env) {
-  if (!env.PROMOTIONS) {
+  if (!storageConfigured(env)) {
     return { whatsappNumber: DEFAULT_WHATSAPP_NUMBER, whatsappDisplay: formatWhatsAppNumber(DEFAULT_WHATSAPP_NUMBER), storageConfigured: false };
   }
-  const raw = await env.PROMOTIONS.get(CONTACT_KEY);
+  const raw = await storageGet(env, CONTACT_KEY);
   if (!raw) {
     return { whatsappNumber: DEFAULT_WHATSAPP_NUMBER, whatsappDisplay: formatWhatsAppNumber(DEFAULT_WHATSAPP_NUMBER), storageConfigured: true };
   }
@@ -51,11 +67,11 @@ async function readContact(env) {
 export async function handleBusinessContact(request, env) {
   if (request.method === "GET") return json(await readContact(env));
   if (request.method !== "POST") return json({ error: "Método não permitido." }, 405);
-  if (!env.PROMOTIONS) return json({ error: "Armazenamento ainda não configurado no Cloudflare." }, 500);
-  if (!env.ADMIN_PASSWORD) return json({ error: "Senha de administrador não configurada." }, 500);
+  if (!storageConfigured(env)) return json({ error: "Armazenamento ainda não configurado no Cloudflare." }, 500);
+  if (!env.ADMIN_PASSWORD && !env.ADMIN_PASSWORD_SHA256) return json({ error: "Senha de administrador não configurada." }, 500);
 
   const password = request.headers.get("x-admin-password") || "";
-  if (password !== env.ADMIN_PASSWORD) return json({ error: "Senha incorreta." }, 401);
+  if (!await adminPasswordMatches(password, env)) return json({ error: "Senha incorreta." }, 401);
 
   let body;
   try { body = await request.json(); }
@@ -71,7 +87,7 @@ export async function handleBusinessContact(request, env) {
     whatsappDisplay: formatWhatsAppNumber(whatsappNumber),
     updatedAt: new Date().toISOString()
   };
-  await env.PROMOTIONS.put(CONTACT_KEY, JSON.stringify(contact));
+  await storagePut(env, CONTACT_KEY, JSON.stringify(contact));
   return json({ ok: true, ...contact, storageConfigured: true });
 }
 

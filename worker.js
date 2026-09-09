@@ -1,3 +1,5 @@
+import { storageConfigured, storageDelete, storageGet, storagePut } from "./storage.js";
+
 const json = (data, status = 200, extraHeaders = {}) => new Response(JSON.stringify(data), {
   status,
   headers: {
@@ -52,9 +54,9 @@ function clearSessionCookie() {
 }
 
 async function createAdminSession(env) {
-  if (!env.PROMOTIONS) return "";
+  if (!storageConfigured(env)) return "";
   const token = `${crypto.randomUUID().replaceAll("-", "")}${crypto.randomUUID().replaceAll("-", "")}`;
-  await env.PROMOTIONS.put(`admin-session:${token}`, "1", { expirationTtl: ADMIN_SESSION_TTL });
+  await storagePut(env, `admin-session:${token}`, "1", { expirationTtl: ADMIN_SESSION_TTL });
   return token;
 }
 
@@ -64,8 +66,8 @@ async function authorized(request, env) {
   }
 
   const sessionToken = readCookie(request, ADMIN_SESSION_COOKIE);
-  if (sessionToken && env.PROMOTIONS) {
-    const validSession = await env.PROMOTIONS.get(`admin-session:${sessionToken}`);
+  if (sessionToken && storageConfigured(env)) {
+    const validSession = await storageGet(env, `admin-session:${sessionToken}`);
     if (validSession === "1") return { ok: true, sessionToken, fromSession: true };
   }
 
@@ -75,7 +77,7 @@ async function authorized(request, env) {
   }
 
   let setCookie = "";
-  if (isAdminAppRequest(request) && env.PROMOTIONS) {
+  if (isAdminAppRequest(request) && storageConfigured(env)) {
     const token = await createAdminSession(env);
     if (token) setCookie = sessionCookie(token);
   }
@@ -137,8 +139,8 @@ async function secretMatches(value, plainSecret, secretHash) {
 }
 
 async function getProducts(env) {
-  if (!env.PROMOTIONS) return DEFAULT_PRODUCTS;
-  const raw = await env.PROMOTIONS.get("products");
+  if (!storageConfigured(env)) return DEFAULT_PRODUCTS;
+  const raw = await storageGet(env, "products");
   if (!raw) return DEFAULT_PRODUCTS;
   try {
     const parsed = JSON.parse(raw);
@@ -149,8 +151,8 @@ async function getProducts(env) {
 }
 
 async function getPromotion(env) {
-  if (!env.PROMOTIONS) return null;
-  const raw = await env.PROMOTIONS.get("current-promotion");
+  if (!storageConfigured(env)) return null;
+  const raw = await storageGet(env, "current-promotion");
   if (!raw) return null;
   try {
     const promo = JSON.parse(raw);
@@ -161,13 +163,13 @@ async function getPromotion(env) {
 }
 
 async function readStats(env) {
-  const raw = await env.PROMOTIONS.get("order-stats");
+  const raw = await storageGet(env, "order-stats");
   const base = { totalOrders: 0, totalValue: 0, todayOrders: 0, todayValue: 0, currentDate: "" };
   try { return raw ? { ...base, ...JSON.parse(raw) } : base; } catch { return base; }
 }
 
 async function readRecentOrders(env) {
-  const raw = await env.PROMOTIONS.get("recent-orders");
+  const raw = await storageGet(env, "recent-orders");
   try {
     const parsed = raw ? JSON.parse(raw) : [];
     return Array.isArray(parsed) ? parsed : [];
@@ -208,13 +210,13 @@ function removeOrderFromStats(stats, order) {
 
 async function handleProducts(request, env) {
   if (request.method === "GET") {
-    return json({ products: await getProducts(env), storageConfigured: Boolean(env.PROMOTIONS) });
+    return json({ products: await getProducts(env), storageConfigured: storageConfigured(env) });
   }
 
   if (request.method !== "POST") return json({ error: "Método não permitido." }, 405);
   const auth = await authorized(request, env);
   if (!auth.ok) return auth.response;
-  if (!env.PROMOTIONS) return json({ error: "Armazenamento ainda não configurado no Cloudflare." }, 500);
+  if (!storageConfigured(env)) return json({ error: "Armazenamento ainda não configurado no Cloudflare." }, 500);
 
   let body;
   try { body = await request.json(); } catch { return json({ error: "Dados inválidos." }, 400); }
@@ -222,13 +224,13 @@ async function handleProducts(request, env) {
   if (body.products.length > 60) return json({ error: "Limite de 60 produtos." }, 400);
 
   const products = body.products.map(normalizeProduct).filter((p) => p.name);
-  await env.PROMOTIONS.put("products", JSON.stringify(products));
+  await storagePut(env, "products", JSON.stringify(products));
   return authJson({ ok: true, products, storageConfigured: true }, auth);
 }
 
 async function handlePromo(request, env) {
   if (request.method === "GET") {
-    if (!env.PROMOTIONS) return json({ active: false, orderEnabled: false, storageConfigured: false });
+    if (!storageConfigured(env)) return json({ active: false, orderEnabled: false, storageConfigured: false });
     const promo = await getPromotion(env);
     return json(promo ? { ...promo, storageConfigured: true } : { active: false, orderEnabled: false, storageConfigured: true });
   }
@@ -236,15 +238,15 @@ async function handlePromo(request, env) {
   if (request.method === "DELETE") {
     const auth = await authorized(request, env);
     if (!auth.ok) return auth.response;
-    if (!env.PROMOTIONS) return json({ error: "Armazenamento ainda não configurado no Cloudflare." }, 500);
-    await env.PROMOTIONS.delete("current-promotion");
+    if (!storageConfigured(env)) return json({ error: "Armazenamento ainda não configurado no Cloudflare." }, 500);
+    await storageDelete(env, "current-promotion");
     return authJson({ ok: true, deleted: true, storageConfigured: true }, auth);
   }
 
   if (request.method !== "POST") return json({ error: "Método não permitido." }, 405);
   const auth = await authorized(request, env);
   if (!auth.ok) return auth.response;
-  if (!env.PROMOTIONS) return json({ error: "Armazenamento ainda não configurado no Cloudflare." }, 500);
+  if (!storageConfigured(env)) return json({ error: "Armazenamento ainda não configurado no Cloudflare." }, 500);
 
   let data;
   try { data = await request.json(); } catch { return json({ error: "Dados inválidos." }, 400); }
@@ -268,12 +270,12 @@ async function handlePromo(request, env) {
   if (promo.image && !promo.image.startsWith("data:image/")) return json({ error: "Formato de imagem inválido." }, 400);
   if (promo.image.length > 1500000) return json({ error: "A imagem ficou muito grande." }, 413);
 
-  await env.PROMOTIONS.put("current-promotion", JSON.stringify(promo));
+  await storagePut(env, "current-promotion", JSON.stringify(promo));
   return authJson({ ok: true, promotion: promo, storageConfigured: true }, auth);
 }
 
 async function createOrder(request, env) {
-  if (!env.PROMOTIONS) return json({ error: "O sistema de pedidos está temporariamente indisponível." }, 503);
+  if (!storageConfigured(env)) return json({ error: "O sistema de pedidos está temporariamente indisponível." }, 503);
 
   let body;
   try { body = await request.json(); } catch { return json({ error: "Dados do pedido inválidos." }, 400); }
@@ -303,7 +305,7 @@ async function createOrder(request, env) {
   if (requestedItems.length === 0 && !requestedPromoId) return json({ error: "O pedido está vazio ou inválido." }, 400);
 
   if (clientOrderId) {
-    const duplicateRaw = await env.PROMOTIONS.get(`order-dedupe:${clientOrderId}`);
+    const duplicateRaw = await storageGet(env, `order-dedupe:${clientOrderId}`);
     if (duplicateRaw) {
       try {
         const existing = JSON.parse(duplicateRaw);
@@ -396,10 +398,10 @@ async function createOrder(request, env) {
   const trimmed = recent.slice(0, MAX_RECENT_ORDERS);
 
   const writes = [
-    env.PROMOTIONS.put("order-stats", JSON.stringify(stats)),
-    env.PROMOTIONS.put("recent-orders", JSON.stringify(trimmed))
+    storagePut(env, "order-stats", JSON.stringify(stats)),
+    storagePut(env, "recent-orders", JSON.stringify(trimmed))
   ];
-  if (clientOrderId) writes.push(env.PROMOTIONS.put(`order-dedupe:${clientOrderId}`, JSON.stringify(order), { expirationTtl: 86400 }));
+  if (clientOrderId) writes.push(storagePut(env, `order-dedupe:${clientOrderId}`, JSON.stringify(order), { expirationTtl: 86400 }));
   await Promise.all(writes);
 
   return json({ ok: true, order, storageConfigured: true }, 201);
@@ -408,7 +410,7 @@ async function createOrder(request, env) {
 async function updateOrderStatus(request, env, orderId) {
   const auth = await authorized(request, env);
   if (!auth.ok) return auth.response;
-  if (!env.PROMOTIONS) return json({ error: "Armazenamento ainda não configurado no Cloudflare." }, 500);
+  if (!storageConfigured(env)) return json({ error: "Armazenamento ainda não configurado no Cloudflare." }, 500);
 
   let body;
   try { body = await request.json(); } catch { return json({ error: "Dados inválidos." }, 400); }
@@ -427,8 +429,8 @@ async function updateOrderStatus(request, env, orderId) {
   recent[index] = updated;
 
   await Promise.all([
-    env.PROMOTIONS.put("order-stats", JSON.stringify(stats)),
-    env.PROMOTIONS.put("recent-orders", JSON.stringify(recent.slice(0, MAX_RECENT_ORDERS)))
+    storagePut(env, "order-stats", JSON.stringify(stats)),
+    storagePut(env, "recent-orders", JSON.stringify(recent.slice(0, MAX_RECENT_ORDERS)))
   ]);
 
   return authJson({ ok: true, order: updated, stats, recent, storageConfigured: true }, auth);
@@ -444,7 +446,7 @@ async function handleOrders(request, env, url) {
   if (request.method === "GET") {
     const auth = await authorized(request, env);
     if (!auth.ok) return auth.response;
-    if (!env.PROMOTIONS) {
+    if (!storageConfigured(env)) {
       return authJson({
         stats: { totalOrders: 0, totalValue: 0, todayOrders: 0, todayValue: 0, currentDate: "" },
         recent: [],
@@ -458,10 +460,10 @@ async function handleOrders(request, env, url) {
   if (request.method === "DELETE") {
     const auth = await authorized(request, env);
     if (!auth.ok) return auth.response;
-    if (!env.PROMOTIONS) return json({ error: "Armazenamento ainda não configurado no Cloudflare." }, 500);
+    if (!storageConfigured(env)) return json({ error: "Armazenamento ainda não configurado no Cloudflare." }, 500);
     await Promise.all([
-      env.PROMOTIONS.delete("order-stats"),
-      env.PROMOTIONS.delete("recent-orders")
+      storageDelete(env, "order-stats"),
+      storageDelete(env, "recent-orders")
     ]);
     return authJson({
       ok: true,
@@ -483,7 +485,7 @@ function localDateKeyForWorker() {
 async function handleLogout(request, env) {
   if (request.method !== "POST" && request.method !== "DELETE") return json({ error: "Método não permitido." }, 405);
   const sessionToken = readCookie(request, ADMIN_SESSION_COOKIE);
-  if (sessionToken && env.PROMOTIONS) await env.PROMOTIONS.delete(`admin-session:${sessionToken}`);
+  if (sessionToken && storageConfigured(env)) await storageDelete(env, `admin-session:${sessionToken}`);
   return json({ ok: true }, 200, { "set-cookie": clearSessionCookie() });
 }
 
@@ -504,7 +506,7 @@ export default {
       if (request.method !== "GET") return json({ error: "Método não permitido." }, 405);
       const auth = await authorized(request, env);
       if (!auth.ok) return auth.response;
-      return authJson({ ok: true, storageConfigured: Boolean(env.PROMOTIONS) }, auth);
+      return authJson({ ok: true, storageConfigured: storageConfigured(env) }, auth);
     }
 
     if (url.pathname === "/api/logout") return handleLogout(request, env);

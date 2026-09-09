@@ -1,6 +1,7 @@
 import baseWorker from "./worker.js";
 import { handlePushRegistration, notifyNewOrder } from "./push.js";
 import { handleBusinessContact } from "./business-contact-api.js";
+import { storageConfigured, storageDelete, storageGet, storagePut } from "./storage.js";
 
 const DEFAULT_ROBOT_SETTINGS = {
   enabled: false,
@@ -134,8 +135,8 @@ function emptySession() {
 }
 
 async function loadRobotSettings(env) {
-  if (!env.PROMOTIONS) return { ...DEFAULT_ROBOT_SETTINGS, storageConfigured: false };
-  const raw = await env.PROMOTIONS.get("robot-settings");
+  if (!storageConfigured(env)) return { ...DEFAULT_ROBOT_SETTINGS, storageConfigured: false };
+  const raw = await storageGet(env, "robot-settings");
   if (!raw) return { ...DEFAULT_ROBOT_SETTINGS, storageConfigured: true };
   try {
     return { ...DEFAULT_ROBOT_SETTINGS, ...JSON.parse(raw), storageConfigured: true };
@@ -145,8 +146,8 @@ async function loadRobotSettings(env) {
 }
 
 async function loadSession(env, key) {
-  if (!env.PROMOTIONS || !key) return emptySession();
-  const raw = await env.PROMOTIONS.get(key);
+  if (!storageConfigured(env) || !key) return emptySession();
+  const raw = await storageGet(env, key);
   if (!raw) return emptySession();
   try {
     const data = JSON.parse(raw);
@@ -157,13 +158,13 @@ async function loadSession(env, key) {
 }
 
 async function saveSession(env, key, session) {
-  if (!env.PROMOTIONS || !key) return;
+  if (!storageConfigured(env) || !key) return;
   const next = { ...session, updatedAt: new Date().toISOString() };
-  await env.PROMOTIONS.put(key, JSON.stringify(next), { expirationTtl: ROBOT_SESSION_TTL });
+  await storagePut(env, key, JSON.stringify(next), { expirationTtl: ROBOT_SESSION_TTL });
 }
 
 async function clearSession(env, key) {
-  if (env.PROMOTIONS && key) await env.PROMOTIONS.delete(key);
+  if (storageConfigured(env) && key) await storageDelete(env, key);
 }
 
 async function getAvailableProducts(request, env, ctx) {
@@ -376,10 +377,10 @@ async function handleRobotConnection(request, env, ctx) {
   const authResponse = await authorizeWithBaseWorker(request, env, ctx);
   if (!authResponse.ok) return authResponse;
   const responseHeaders = adminAuthHeaders(authResponse);
-  if (!env.PROMOTIONS) return json({ error: "Armazenamento ainda não configurado no Cloudflare." }, 500, responseHeaders);
+  if (!storageConfigured(env)) return json({ error: "Armazenamento ainda não configurado no Cloudflare." }, 500, responseHeaders);
 
   if (request.method === "GET") {
-    const raw = await env.PROMOTIONS.get(ROBOT_CONNECTION_STATE_KEY);
+    const raw = await storageGet(env, ROBOT_CONNECTION_STATE_KEY);
     if (!raw) {
       return json({
         configured: true,
@@ -416,7 +417,7 @@ async function handleRobotConnection(request, env, ctx) {
   if (!action) return json({ error: "Ação inválida." }, 400, responseHeaders);
 
   const command = { id: crypto.randomUUID(), action, createdAt: new Date().toISOString() };
-  await env.PROMOTIONS.put(ROBOT_CONNECTION_COMMAND_KEY, JSON.stringify(command), { expirationTtl: 600 });
+  await storagePut(env, ROBOT_CONNECTION_COMMAND_KEY, JSON.stringify(command), { expirationTtl: 600 });
   return json({
     configured: true,
     ok: true,
@@ -431,29 +432,29 @@ async function handleRobotConnection(request, env, ctx) {
 async function handleRobotConnectionSync(request, env) {
   if (request.method !== "POST") return json({ error: "Método não permitido." }, 405);
   if (!robotTokenConfigured(env) || !await robotTokenAuthorized(request, env)) return json({ error: "Token do robô inválido." }, 401);
-  if (!env.PROMOTIONS) return json({ error: "Armazenamento do robô não configurado." }, 503);
+  if (!storageConfigured(env)) return json({ error: "Armazenamento do robô não configurado." }, 503);
 
   let body;
   try { body = await request.json(); }
   catch { return json({ error: "Dados inválidos." }, 400); }
 
   const state = cleanConnectionState({ ...body, updatedAt: new Date().toISOString() });
-  await env.PROMOTIONS.put(ROBOT_CONNECTION_STATE_KEY, JSON.stringify(state), { expirationTtl: 300 });
+  await storagePut(env, ROBOT_CONNECTION_STATE_KEY, JSON.stringify(state), { expirationTtl: 300 });
   return json({ ok: true });
 }
 
 async function handleRobotConnectionCommand(request, env) {
   if (request.method !== "GET") return json({ error: "Método não permitido." }, 405);
   if (!robotTokenConfigured(env) || !await robotTokenAuthorized(request, env)) return json({ error: "Token do robô inválido." }, 401);
-  if (!env.PROMOTIONS) return json({ error: "Armazenamento do robô não configurado." }, 503);
+  if (!storageConfigured(env)) return json({ error: "Armazenamento do robô não configurado." }, 503);
 
-  const raw = await env.PROMOTIONS.get(ROBOT_CONNECTION_COMMAND_KEY);
+  const raw = await storageGet(env, ROBOT_CONNECTION_COMMAND_KEY);
   if (!raw) return json({ command: null });
   try {
     const command = JSON.parse(raw);
     const after = safeText(new URL(request.url).searchParams.get("after"), 80);
     if (!command?.id) return json({ command: null });
-    await env.PROMOTIONS.delete(ROBOT_CONNECTION_COMMAND_KEY);
+    await storageDelete(env, ROBOT_CONNECTION_COMMAND_KEY);
     return json({ command: command.id !== after ? command : null });
   } catch {
     return json({ command: null });
@@ -470,7 +471,7 @@ async function handleRobotSettings(request, env, ctx) {
 
   const authResponse = await authorizeWithBaseWorker(request, env, ctx);
   if (!authResponse.ok) return authResponse;
-  if (!env.PROMOTIONS) return json({ error: "Armazenamento ainda não configurado no Cloudflare." }, 500);
+  if (!storageConfigured(env)) return json({ error: "Armazenamento ainda não configurado no Cloudflare." }, 500);
 
   let data;
   try {
@@ -492,7 +493,7 @@ async function handleRobotSettings(request, env, ctx) {
     updatedAt: new Date().toISOString()
   };
 
-  await env.PROMOTIONS.put("robot-settings", JSON.stringify(settings));
+  await storagePut(env, "robot-settings", JSON.stringify(settings));
   const setCookie = authResponse.headers.get("set-cookie");
   return json({ ok: true, settings, storageConfigured: true }, 200, setCookie ? { "set-cookie": setCookie } : {});
 }
@@ -542,7 +543,7 @@ async function createRobotOrder(request, env, ctx, session, phone, key, delivery
 
 async function handleRobotConversation(request, env, ctx) {
   if (request.method !== "POST") return json({ error: "Método não permitido." }, 405);
-  if (!env.PROMOTIONS) return json({ error: "Armazenamento do robô não configurado." }, 503);
+  if (!storageConfigured(env)) return json({ error: "Armazenamento do robô não configurado." }, 503);
 
   if (robotTokenConfigured(env) && !await robotTokenAuthorized(request, env)) {
     return json({ error: "Token do robô inválido." }, 401);
