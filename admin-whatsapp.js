@@ -46,7 +46,9 @@
       });
     }
     const headers = { 'content-type': 'application/json' };
-    if (typeof adminPassword !== 'undefined' && adminPassword) headers['x-admin-password'] = adminPassword;
+    const appToken = typeof getAdminAppToken === 'function' ? getAdminAppToken() : '';
+    if (appToken) headers['x-admin-app-token'] = appToken;
+    else if (typeof adminPassword !== 'undefined' && adminPassword) headers['x-admin-password'] = adminPassword;
     const response = await fetch('/api/business-contact', {
       method: 'POST', headers, body: JSON.stringify({ whatsappNumber: number })
     });

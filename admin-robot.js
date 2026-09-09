@@ -58,7 +58,9 @@
         if (data?.settings) persistLocal(data.settings);
       } else {
         const headers = { 'content-type': 'application/json' };
-        if (typeof adminPassword !== 'undefined' && adminPassword) headers['x-admin-password'] = adminPassword;
+        const appToken = typeof getAdminAppToken === 'function' ? getAdminAppToken() : '';
+        if (appToken) headers['x-admin-app-token'] = appToken;
+        else if (typeof adminPassword !== 'undefined' && adminPassword) headers['x-admin-password'] = adminPassword;
         const response = await fetch('/api/robot', { method: 'POST', headers, body: JSON.stringify(next) });
         const data = await response.json().catch(() => ({}));
         if (!response.ok) throw new Error(data.error || 'Não foi possível salvar o robô.');
@@ -174,7 +176,9 @@
     if (typeof api === 'function') return api('/api/robot/connection', options);
 
     const headers = { ...(options.headers || {}) };
-    if (typeof adminPassword !== 'undefined' && adminPassword) headers['x-admin-password'] = adminPassword;
+    const appToken = typeof getAdminAppToken === 'function' ? getAdminAppToken() : '';
+    if (appToken) headers['x-admin-app-token'] = appToken;
+    else if (typeof adminPassword !== 'undefined' && adminPassword) headers['x-admin-password'] = adminPassword;
     const response = await fetch('/api/robot/connection', {
       ...options,
       headers,

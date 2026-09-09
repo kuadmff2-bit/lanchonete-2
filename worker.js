@@ -30,6 +30,8 @@ const ADMIN_SESSION_TTL = 60 * 60 * 24 * 30;
 const ADMIN_APP_MARKER = "LanchoneteAdminApp/";
 const ORDER_STATUSES = new Set(["novo", "confirmado", "preparando", "saiu_entrega", "finalizado", "cancelado"]);
 const MAX_RECENT_ORDERS = 80;
+const BRANDING_STORAGE_KEY = "site-branding";
+const BRANDING_TOTAL_LIMIT = 1450000;
 
 function readCookie(request, name) {
   const cookie = request.headers.get("cookie") || "";
@@ -71,8 +73,12 @@ async function authorized(request, env) {
     if (validSession === "1") return { ok: true, sessionToken, fromSession: true };
   }
 
+  const appToken = request.headers.get("x-admin-app-token") || "";
+  const appAuthorized = isAdminAppRequest(request)
+    && await secretMatches(appToken, env.ADMIN_APP_TOKEN, env.ADMIN_APP_TOKEN_SHA256);
   const password = request.headers.get("x-admin-password") || "";
-  if (!await secretMatches(password, env.ADMIN_PASSWORD, env.ADMIN_PASSWORD_SHA256)) {
+  const passwordAuthorized = await secretMatches(password, env.ADMIN_PASSWORD, env.ADMIN_PASSWORD_SHA256);
+  if (!appAuthorized && !passwordAuthorized) {
     return { ok: false, response: json({ error: "Senha incorreta." }, 401) };
   }
 
@@ -110,6 +116,138 @@ function safeDate(value) {
 
 function safeText(value, max = 120) {
   return String(value || "").trim().slice(0, max);
+}
+
+function safeHexColor(value, fallback) {
+  const color = String(value || "").trim();
+  return /^#[0-9a-f]{6}$/i.test(color) ? color.toLowerCase() : fallback;
+}
+
+function brandingDefaults(env) {
+  return {
+    name: safeText(env.SITE_DEFAULT_NAME || "Lanchonete", 80),
+    subtitle: safeText(env.SITE_DEFAULT_SUBTITLE || "Cardápio digital", 100),
+    heroTitle: safeText(env.SITE_DEFAULT_HERO_TITLE || "Seu lanche.\nSeu estilo.", 120),
+    heroText: safeText(env.SITE_DEFAULT_HERO_TEXT || "Escolha seus itens e envie o pedido pelo WhatsApp.", 240),
+    primaryColor: safeHexColor(env.SITE_DEFAULT_PRIMARY, "#f58213"),
+    accentColor: safeHexColor(env.SITE_DEFAULT_ACCENT, "#25d366"),
+    backgroundColor: safeHexColor(env.SITE_DEFAULT_BACKGROUND, "#0d0d0d"),
+    surfaceColor: safeHexColor(env.SITE_DEFAULT_SURFACE, "#171717"),
+    textColor: safeHexColor(env.SITE_DEFAULT_TEXT, "#f5f5f3"),
+    styleVariant: safeText(env.SITE_STYLE_VARIANT || "original", 30),
+    defaultLogo: "/assets/favicon.svg",
+    defaultHeroImage: safeText(env.SITE_DEFAULT_HERO_IMAGE || "/assets/hero-burger.jpg", 180),
+    logo: "",
+    heroImage: "",
+    pageBackgroundImage: ""
+  };
+}
+
+function safeBrandImage(value, maxLength, label) {
+  const image = String(value || "");
+  if (!image) return "";
+  if (!/^data:image\/(?:jpeg|png|webp);base64,[a-z0-9+/=\s]+$/i.test(image)) {
+    throw new Error(`A imagem de ${label} está em um formato inválido.`);
+  }
+  if (image.length > maxLength) throw new Error(`A imagem de ${label} ficou muito grande.`);
+  return image;
+}
+
+function normalizeBranding(data, defaults) {
+  return {
+    ...defaults,
+    name: safeText(data?.name, 80) || defaults.name,
+    subtitle: safeText(data?.subtitle, 100) || defaults.subtitle,
+    heroTitle: safeText(data?.heroTitle, 120) || defaults.heroTitle,
+    heroText: safeText(data?.heroText, 240) || defaults.heroText,
+    primaryColor: safeHexColor(data?.primaryColor, defaults.primaryColor),
+    accentColor: safeHexColor(data?.accentColor, defaults.accentColor),
+    backgroundColor: safeHexColor(data?.backgroundColor, defaults.backgroundColor),
+    surfaceColor: safeHexColor(data?.surfaceColor, defaults.surfaceColor),
+    textColor: safeHexColor(data?.textColor, defaults.textColor),
+    logo: String(data?.logo || ""),
+    heroImage: String(data?.heroImage || ""),
+    pageBackgroundImage: String(data?.pageBackgroundImage || ""),
+    updatedAt: data?.updatedAt || null
+  };
+}
+
+async function readBranding(env) {
+  const defaults = brandingDefaults(env);
+  if (!storageConfigured(env)) {
+    return { ...defaults, storageConfigured: false, hasCustomBranding: false };
+  }
+  const raw = await storageGet(env, BRANDING_STORAGE_KEY);
+  if (!raw) return { ...defaults, storageConfigured: true, hasCustomBranding: false };
+  try {
+    const branding = normalizeBranding(JSON.parse(raw), defaults);
+    branding.logo = safeBrandImage(branding.logo, 220000, "logo");
+    branding.heroImage = safeBrandImage(branding.heroImage, 650000, "capa");
+    branding.pageBackgroundImage = safeBrandImage(branding.pageBackgroundImage, 650000, "fundo");
+    return { ...branding, storageConfigured: true, hasCustomBranding: true };
+  } catch {
+    return { ...defaults, storageConfigured: true, hasCustomBranding: false };
+  }
+}
+
+async function handleBranding(request, env) {
+  if (request.method === "GET") return json(await readBranding(env));
+
+  const auth = await authorized(request, env);
+  if (!auth.ok) return auth.response;
+  if (!storageConfigured(env)) {
+    return authJson({ error: "Armazenamento ainda não configurado no Cloudflare." }, auth, 500);
+  }
+
+  if (request.method === "DELETE") {
+    await storageDelete(env, BRANDING_STORAGE_KEY);
+    return authJson({ ok: true, ...(await readBranding(env)) }, auth);
+  }
+  if (request.method !== "POST") return authJson({ error: "Método não permitido." }, auth, 405);
+
+  let body;
+  try { body = await request.json(); }
+  catch { return authJson({ error: "Dados de aparência inválidos." }, auth, 400); }
+
+  const defaults = brandingDefaults(env);
+  let branding;
+  try {
+    branding = normalizeBranding(body, defaults);
+    branding.logo = safeBrandImage(body?.logo, 220000, "logo");
+    branding.heroImage = safeBrandImage(body?.heroImage, 650000, "capa");
+    branding.pageBackgroundImage = safeBrandImage(body?.pageBackgroundImage, 650000, "fundo");
+  } catch (error) {
+    const status = String(error.message).includes("grande") ? 413 : 400;
+    return authJson({ error: error.message }, auth, status);
+  }
+
+  const stored = {
+    name: branding.name,
+    subtitle: branding.subtitle,
+    heroTitle: branding.heroTitle,
+    heroText: branding.heroText,
+    primaryColor: branding.primaryColor,
+    accentColor: branding.accentColor,
+    backgroundColor: branding.backgroundColor,
+    surfaceColor: branding.surfaceColor,
+    textColor: branding.textColor,
+    logo: branding.logo,
+    heroImage: branding.heroImage,
+    pageBackgroundImage: branding.pageBackgroundImage,
+    updatedAt: new Date().toISOString()
+  };
+  const serialized = JSON.stringify(stored);
+  if (serialized.length > BRANDING_TOTAL_LIMIT) {
+    return authJson({ error: "As imagens juntas ficaram muito grandes. Escolha arquivos menores." }, auth, 413);
+  }
+
+  await storagePut(env, BRANDING_STORAGE_KEY, serialized);
+  return authJson({
+    ok: true,
+    ...normalizeBranding(stored, defaults),
+    storageConfigured: true,
+    hasCustomBranding: true
+  }, auth);
 }
 
 function normalizeCustomerPhone(value) {
@@ -510,6 +648,7 @@ export default {
     }
 
     if (url.pathname === "/api/logout") return handleLogout(request, env);
+    if (url.pathname === "/api/branding") return handleBranding(request, env);
     if (url.pathname === "/api/products") return handleProducts(request, env);
     if (url.pathname === "/api/promo") return handlePromo(request, env);
     if (url.pathname === "/api/orders" || url.pathname.startsWith("/api/orders/")) return handleOrders(request, env, url);

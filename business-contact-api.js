@@ -70,8 +70,15 @@ export async function handleBusinessContact(request, env) {
   if (!storageConfigured(env)) return json({ error: "Armazenamento ainda não configurado no Cloudflare." }, 500);
   if (!env.ADMIN_PASSWORD && !env.ADMIN_PASSWORD_SHA256) return json({ error: "Senha de administrador não configurada." }, 500);
 
+  const isAdminApp = (request.headers.get("user-agent") || "").includes("LanchoneteAdminApp/");
+  const appToken = request.headers.get("x-admin-app-token") || "";
   const password = request.headers.get("x-admin-password") || "";
-  if (!await adminPasswordMatches(password, env)) return json({ error: "Senha incorreta." }, 401);
+  const allowed = (isAdminApp && await adminPasswordMatches(appToken, {
+    ADMIN_PASSWORD: env.ADMIN_APP_TOKEN,
+    ADMIN_PASSWORD_SHA256: env.ADMIN_APP_TOKEN_SHA256
+  }))
+    || await adminPasswordMatches(password, env);
+  if (!allowed) return json({ error: "Senha incorreta." }, 401);
 
   let body;
   try { body = await request.json(); }

@@ -238,8 +238,10 @@ async function authorizeWithBaseWorker(request, env, ctx) {
 function robotServiceConfig(env, request) {
   const rawUrl = String(env.ROBOT_SERVICE_URL || "").trim().replace(/\/$/, "");
   const token = String(
-    request?.headers?.get("x-admin-password")
-    || env.ROBOT_CONTROL_TOKEN
+    env.ROBOT_CONTROL_TOKEN
+    || env.ADMIN_PASSWORD
+    || request?.headers?.get("x-admin-password")
+    || request?.headers?.get("x-admin-app-token")
     || ""
   ).trim();
   if (!rawUrl || !token) return { configured: false, url: "", token: "" };

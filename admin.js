@@ -3,6 +3,7 @@ const money = (value) => Number(value || 0).toLocaleString("pt-BR", { style: "cu
 const esc = (value) => String(value ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" }[c]));
 
 let adminPassword = "";
+let adminAppToken = "";
 let products = [];
 let editingId = null;
 let productImageData = "";
@@ -41,9 +42,21 @@ async function compressImage(file, maxSide = 900, quality = 0.7) {
   return canvas.toDataURL("image/jpeg", quality);
 }
 
+function getAdminAppToken() {
+  try {
+    const value = window.AdminBridge?.getToken?.();
+    return typeof value === "string" ? value.trim() : "";
+  } catch {
+    return "";
+  }
+}
+
+window.getAdminAppToken = getAdminAppToken;
+
 async function api(url, options = {}) {
   const headers = { ...(options.headers || {}) };
-  if (adminPassword) headers["x-admin-password"] = adminPassword;
+  if (adminAppToken) headers["x-admin-app-token"] = adminAppToken;
+  else if (adminPassword) headers["x-admin-password"] = adminPassword;
   const response = await fetch(url, { ...options, headers, cache: "no-store" });
   const data = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(data.error || "Não foi possível concluir a operação.");

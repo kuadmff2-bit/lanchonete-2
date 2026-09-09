@@ -1,0 +1,253 @@
+.branding-card {
+  display: grid;
+  gap: 24px;
+}
+
+.branding-intro {
+  margin: -4px 0 0;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.branding-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.12fr) minmax(260px, .88fr);
+  gap: 22px;
+  align-items: start;
+}
+
+.branding-fields,
+.branding-media,
+.branding-colors {
+  display: grid;
+  gap: 15px;
+}
+
+.branding-group {
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 17px;
+  background: color-mix(in srgb, var(--card2) 78%, transparent);
+}
+
+.branding-group h3 {
+  margin: 0 0 5px;
+  font-size: 17px;
+}
+
+.branding-group > p {
+  margin: 0 0 16px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.branding-upload {
+  display: grid;
+  grid-template-columns: 76px minmax(0, 1fr);
+  gap: 13px;
+  align-items: center;
+}
+
+.branding-thumb {
+  width: 76px;
+  height: 76px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--card2);
+  color: var(--muted);
+  font-size: 10px;
+  text-align: center;
+}
+
+.branding-thumb.wide {
+  height: 62px;
+  border-radius: 12px;
+}
+
+.branding-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.branding-thumb.logo img {
+  padding: 8px;
+  object-fit: contain;
+}
+
+.branding-upload-actions {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+}
+
+.branding-upload-actions .image-picker {
+  min-height: 52px;
+  grid-template-columns: 32px minmax(0, 1fr) 18px;
+  padding: 9px 11px;
+}
+
+.branding-upload-actions .image-picker-plus {
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  font-size: 20px;
+}
+
+.branding-upload-actions .secondary-small {
+  justify-self: start;
+}
+
+.color-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.color-field {
+  display: grid;
+  grid-template-columns: 46px 1fr;
+  align-items: center;
+  column-gap: 10px;
+}
+
+.color-field input[type="color"] {
+  grid-row: 1 / span 2;
+  width: 46px;
+  height: 46px;
+  margin: 0;
+  padding: 4px;
+  cursor: pointer;
+}
+
+.color-field span {
+  color: var(--text);
+  font-weight: 700;
+}
+
+.color-field small {
+  margin: 2px 0 0;
+}
+
+.brand-live-preview {
+  position: sticky;
+  top: 14px;
+  min-height: 310px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background: var(--preview-bg);
+  color: var(--preview-text);
+}
+
+.brand-preview-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px;
+  background: var(--preview-surface);
+}
+
+.brand-preview-mark {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 11px;
+  background: var(--preview-primary);
+}
+
+.brand-preview-mark img {
+  width: 76%;
+  height: 76%;
+  object-fit: contain;
+}
+
+.brand-preview-head strong,
+.brand-preview-head small {
+  display: block;
+}
+
+.brand-preview-head small {
+  margin-top: 2px;
+  color: color-mix(in srgb, var(--preview-text) 62%, var(--preview-bg));
+  font-size: 10px;
+}
+
+.brand-preview-hero {
+  min-height: 208px;
+  padding: 22px;
+  display: flex;
+  align-items: end;
+  background-color: color-mix(in srgb, var(--preview-primary) 72%, #111);
+  background-position: center;
+  background-size: cover;
+  box-shadow: inset 0 0 0 999px color-mix(in srgb, var(--preview-bg) 45%, transparent);
+}
+
+.brand-preview-copy {
+  max-width: 230px;
+}
+
+.brand-preview-copy span {
+  color: var(--preview-accent);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: .12em;
+}
+
+.brand-preview-copy strong {
+  display: block;
+  margin-top: 7px;
+  font-size: 25px;
+  line-height: 1;
+}
+
+.branding-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.branding-actions button {
+  flex: 1;
+}
+
+@media (max-width: 780px) {
+  .branding-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .brand-live-preview {
+    position: static;
+  }
+}
+
+@media (max-width: 520px) {
+  .branding-group {
+    padding: 15px;
+  }
+
+  .color-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .branding-upload {
+    grid-template-columns: 64px minmax(0, 1fr);
+  }
+
+  .branding-thumb {
+    width: 64px;
+    height: 64px;
+  }
+
+  .branding-actions {
+    display: grid;
+  }
+}
+

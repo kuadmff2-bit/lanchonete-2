@@ -12,9 +12,9 @@ Cardápio digital, painel administrativo, APK Android e robô de atendimento pel
 
 ## Painel e APK
 
-A área administrativa fica em `/admin.html`. Nela, o dono acompanha pedidos e valores, altera status, gerencia produtos, fotos e promoções, configura o número comercial e controla o robô.
+A área administrativa fica em `/admin.html`. Nela, o dono acompanha pedidos e valores, altera status, gerencia produtos, fotos e promoções, configura o número comercial, controla o robô e personaliza nome, textos, logo, capa, fundo e cores.
 
-O APK abre o painel próprio da Lanchonete 2 e possui uma identidade diferente dos demais aplicativos. O workflow `Gerar APK administrativo` compila uma versão instalável no GitHub Actions.
+O APK abre o painel próprio da Lanchonete 2 sem pedir senha e possui uma identidade diferente dos demais aplicativos. Uma chave exclusiva, separada da senha do painel web, é inserida somente durante o build.
 
 ## Robô do WhatsApp
 

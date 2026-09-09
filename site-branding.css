@@ -1,0 +1,217 @@
+.brand-mark,
+.admin-mark {
+  overflow: hidden;
+  flex: 0 0 auto;
+}
+
+.brand-logo,
+.admin-logo {
+  display: block;
+  width: 74%;
+  height: 74%;
+  object-fit: contain;
+}
+
+.hero-title,
+[data-brand-hero-title] {
+  white-space: pre-line;
+}
+
+body:not(.admin-view) {
+  background-color: var(--bg);
+  color: var(--text);
+}
+
+body:not(.admin-view) .brand-mark,
+body:not(.admin-view) .add-button,
+body:not(.admin-view) .primary-button,
+body:not(.admin-view) .cart-bar,
+body:not(.admin-view) .segmented input:checked + span {
+  background-color: var(--brand-primary);
+  border-color: var(--brand-primary);
+  color: var(--brand-on-primary);
+}
+
+body:not(.admin-view) .whatsapp-button {
+  background-color: var(--brand-accent);
+  color: var(--brand-on-accent);
+}
+
+body:not(.admin-view) .eyebrow,
+body:not(.admin-view) .section-kicker,
+body:not(.admin-view) .promo-label,
+body:not(.admin-view) .sheet-head small {
+  color: var(--brand-primary);
+}
+
+body:not(.admin-view) .product-card,
+body:not(.admin-view) .promo-card,
+body:not(.admin-view) .sheet,
+body:not(.admin-view) .checkout-modal,
+body:not(.admin-view) .icon-button,
+body:not(.admin-view) .qty-control button {
+  background-color: var(--surface);
+  border-color: var(--line);
+  color: var(--text);
+}
+
+body:not(.admin-view) .checkout-modal input,
+body:not(.admin-view) .checkout-modal select,
+body:not(.admin-view) .checkout-modal textarea,
+body:not(.admin-view) .segmented span {
+  background-color: var(--surface2);
+  border-color: var(--line);
+  color: var(--text);
+}
+
+body:not(.admin-view) .product-body p,
+body:not(.admin-view) .promo-content p,
+body:not(.admin-view) .form-note,
+body:not(.admin-view) footer {
+  color: var(--muted);
+}
+
+body.has-brand-background {
+  background-color: var(--bg);
+  background-image:
+    linear-gradient(color-mix(in srgb, var(--bg) 88%, transparent), color-mix(in srgb, var(--bg) 88%, transparent)),
+    var(--brand-page-image);
+  background-position: center;
+  background-size: cover;
+  background-attachment: fixed;
+}
+
+body.has-brand-background .topbar,
+body.has-brand-background .section,
+body.has-brand-background .info-strip,
+body.has-brand-background footer {
+  backdrop-filter: blur(3px);
+}
+
+body.admin-view {
+  background-color: var(--bg);
+  color: var(--text);
+}
+
+body.admin-view .login-panel,
+body.admin-view .admin-card,
+body.admin-view .stat-card {
+  background-color: var(--card);
+  border-color: var(--line);
+}
+
+body.admin-view input,
+body.admin-view textarea,
+body.admin-view select,
+body.admin-view .image-picker,
+body.admin-view .preview,
+body.admin-view .image-preview {
+  background-color: var(--card2);
+  border-color: var(--line);
+  color: var(--text);
+}
+
+body.admin-view .admin-head h1,
+body.admin-view .panel-heading h2,
+body.admin-view .stat-card strong,
+body.admin-view footer strong {
+  color: var(--text);
+}
+
+body.admin-view .admin-head > div:first-child > span,
+body.admin-view .panel-heading span,
+body.admin-view .text-button {
+  color: var(--brand-primary);
+}
+
+body.admin-view .save-button,
+body.admin-view .tab-button.active {
+  background-color: var(--brand-primary);
+  border-color: var(--brand-primary);
+  color: var(--brand-on-primary);
+}
+
+body.admin-view .secondary-button,
+body.admin-view .secondary-small,
+body.admin-view .back-link,
+body.admin-view .tab-button {
+  border-color: var(--line);
+  color: var(--text);
+}
+
+body.admin-view .toggle input {
+  accent-color: var(--brand-primary);
+}
+
+body.admin-view #robotPanel .robot-admin-card {
+  background: var(--card) !important;
+  border-color: var(--line) !important;
+  color: var(--text) !important;
+}
+
+body.admin-view #robotPanel .robot-admin-header h2,
+body.admin-view #robotPanel .robot-grid label,
+body.admin-view #robotPanel .robot-hours label,
+body.admin-view #robotPanel .robot-options,
+body.admin-view #robotPanel .robot-connection-message,
+body.admin-view #robotPanel .robot-qr-box ol {
+  color: var(--text) !important;
+}
+
+body.admin-view #robotPanel .robot-admin-header p,
+body.admin-view #robotPanel .robot-note {
+  color: var(--muted) !important;
+}
+
+body.admin-view #robotPanel .robot-grid textarea,
+body.admin-view #robotPanel .robot-hours input,
+body.admin-view #robotPanel .robot-test input,
+body.admin-view #robotPanel .robot-test,
+body.admin-view #robotPanel .robot-test-reply,
+body.admin-view #robotPanel .robot-qr-box {
+  background: var(--card2) !important;
+  border-color: var(--line) !important;
+  color: var(--text) !important;
+}
+
+body.admin-view #robotPanel .robot-actions .admin-primary,
+body.admin-view #robotPanel .robot-test-row button,
+body.admin-view #robotPanel .robot-switch input:checked + span {
+  background: var(--brand-primary) !important;
+  color: var(--brand-on-primary) !important;
+}
+
+body.admin-view #robotPanel .robot-actions .admin-secondary {
+  background: transparent !important;
+  border-color: var(--line) !important;
+  color: var(--text) !important;
+}
+
+body.admin-view .order-card.status-novo {
+  border-left-color: var(--brand-primary);
+}
+
+body.admin-view .order-detail b,
+body.admin-view .recent-order-main > strong,
+body.admin-view .recent-order-total {
+  color: var(--text) !important;
+}
+
+body.admin-view .order-action-button {
+  background: var(--card2) !important;
+  border-color: var(--line) !important;
+  color: var(--text) !important;
+}
+
+
+@media (max-width: 560px) {
+  .brand-logo,
+  .admin-logo {
+    width: 78%;
+    height: 78%;
+  }
+
+  body.has-brand-background {
+    background-attachment: scroll;
+  }
+}

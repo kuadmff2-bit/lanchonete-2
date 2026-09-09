@@ -11,6 +11,7 @@ import android.os.Looper;
 import android.os.SystemClock;
 import android.view.View;
 import android.webkit.CookieManager;
+import android.webkit.JavascriptInterface;
 import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceRequest;
@@ -21,9 +22,9 @@ import android.widget.FrameLayout;
 import android.widget.Toast;
 
 public class MainActivity extends Activity {
-    private static final String ADMIN_URL = "https://lanchonete-2.kuadmff2.workers.dev/admin?v=20260908-1";
+    private static final String ADMIN_URL = "https://lanchonete-2.kuadmff2.workers.dev/admin?v=20260909-1";
     private static final String ALLOWED_HOST = "lanchonete-2.kuadmff2.workers.dev";
-    private static final String APP_USER_AGENT = "LanchoneteAdminApp/2.0-l2";
+    private static final String APP_USER_AGENT = "LanchoneteAdminApp/2.1-l2";
     private static final int FILE_CHOOSER_REQUEST = 4102;
     private static final long MIN_SPLASH_MS = 700L;
     private static final int READY_MAX_ATTEMPTS = 180;
@@ -72,6 +73,7 @@ public class MainActivity extends Activity {
     private void configureWebView() {
         WebSettings settings = webView.getSettings();
         settings.setJavaScriptEnabled(true);
+        webView.addJavascriptInterface(new AdminBridge(), "AdminBridge");
         settings.setDomStorageEnabled(true);
         settings.setDatabaseEnabled(true);
         settings.setLoadWithOverviewMode(true);
@@ -170,7 +172,10 @@ public class MainActivity extends Activity {
         String script = "(async()=>{" +
                 "try{" +
                 "document.documentElement.dataset.apkReady='0';" +
-                "const r=await fetch('/api/orders',{cache:'no-store',credentials:'include'});" +
+                "const token=window.AdminBridge&&window.AdminBridge.getToken?window.AdminBridge.getToken():'';" +
+                "if(!token)throw new Error('token');" +
+                "if(typeof adminAppToken!=='undefined')adminAppToken=token;" +
+                "const r=await fetch('/api/orders',{cache:'no-store',credentials:'include',headers:{'x-admin-app-token':token}});" +
                 "if(!r.ok)throw new Error('orders');" +
                 "const d=await r.json();" +
                 "const login=document.querySelector('#loginPanel');" +
@@ -306,6 +311,13 @@ public class MainActivity extends Activity {
         }
     }
 
+    private static final class AdminBridge {
+        @JavascriptInterface
+        public String getToken() {
+            return BuildConfig.ADMIN_APP_TOKEN;
+        }
+    }
+
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
@@ -363,6 +375,7 @@ public class MainActivity extends Activity {
         }
 
         if (webView != null) {
+            webView.removeJavascriptInterface("AdminBridge");
             webView.stopLoading();
             webView.setWebChromeClient(null);
             webView.setWebViewClient(null);

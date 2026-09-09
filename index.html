@@ -1,33 +1,35 @@
 <!doctype html>
-<html lang="pt-BR">
+<html lang="pt-BR" data-brand-style="bold">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#1746a2">
   <meta name="description" content="Cardápio digital da Lanchonete 2. Escolha, monte o pedido e finalize pelo WhatsApp.">
   <title>Lanchonete 2 | Cardápio</title>
-  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link id="siteFavicon" rel="icon" href="assets/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="promo-order.css">
   <link rel="stylesheet" href="theme.css">
+  <link rel="stylesheet" href="site-branding.css">
 </head>
 <body>
 <header class="topbar">
-    <a class="brand" href="#inicio" aria-label="Lanchonete 2 - início">
-      <span class="brand-mark">2</span>
-      <span><strong>LANCHONETE 2</strong><small>Peça pelo celular</small></span>
+    <a class="brand" href="#inicio" aria-label="Lanchonete 2 - início" data-brand-home-link>
+      <span class="brand-mark"><img class="brand-logo" data-brand-logo src="assets/favicon.svg" alt=""></span>
+      <span><strong data-brand-name-upper>LANCHONETE 2</strong><small data-brand-subtitle>Peça pelo celular</small></span>
     </a>
     <a class="whatsapp-mini" data-business-whatsapp-link href="#" target="_blank" rel="noopener">WhatsApp</a>
   </header>
 
 <main id="inicio">
-    <section class="hero">
+    <section class="hero" data-brand-hero>
       <div class="hero-content">
         <span class="eyebrow">CARDÁPIO ABERTO</span>
-        <h1>Escolheu.<br>Pediu. Chegou.</h1>
-        <p>Monte seu pedido em poucos passos e envie tudo pronto para a lanchonete.</p>
+        <h1 class="hero-title" data-brand-hero-title>Escolheu.
+Pediu. Chegou.</h1>
+        <p data-brand-hero-text>Monte seu pedido em poucos passos e envie tudo pronto para a lanchonete.</p>
       </div>
-      <div class="hero-media"><img src="assets/hero-lanchonete-2.webp" alt="Hambúrguer preparado na hora com batatas fritas"></div>
+      <div class="hero-media"><img data-brand-hero-image src="assets/hero-lanchonete-2.webp" alt="Hambúrguer preparado na hora com batatas fritas"></div>
     </section>
 
     <section class="promo-section" id="promoSection" hidden>
@@ -124,7 +126,8 @@
     </form>
   </section>
 
-  <footer><strong>Lanchonete 2</strong><span>Cardápio digital</span></footer>
+  <footer><strong data-brand-name>Lanchonete 2</strong><span>Cardápio digital</span></footer>
+  <script src="site-branding.js"></script>
   <script src="business-contact.js"></script>
   <script src="script.js"></script>
   <script src="promo-order.js"></script>

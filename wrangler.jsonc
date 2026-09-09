@@ -11,7 +11,18 @@
     "FCM_PROJECT_ID": "lanchonete-admin",
     "FCM_ANDROID_API_KEY": "AIzaSyBxBWHnh0y5sExe81CIoQ6cV6czDFIHDGs",
     "FCM_ANDROID_APP_ID": "1:35803389315:android:2d8d6884073057cb05aab6",
-    "FCM_SENDER_ID": "35803389315"
+    "FCM_SENDER_ID": "35803389315",
+    "SITE_STYLE_VARIANT": "bold",
+    "SITE_DEFAULT_NAME": "Lanchonete 2",
+    "SITE_DEFAULT_SUBTITLE": "Peça pelo celular",
+    "SITE_DEFAULT_HERO_TITLE": "Escolheu.\nPediu. Chegou.",
+    "SITE_DEFAULT_HERO_TEXT": "Monte seu pedido em poucos passos e envie tudo pronto para a lanchonete.",
+    "SITE_DEFAULT_PRIMARY": "#1746a2",
+    "SITE_DEFAULT_ACCENT": "#ffc857",
+    "SITE_DEFAULT_BACKGROUND": "#eef4ff",
+    "SITE_DEFAULT_SURFACE": "#ffffff",
+    "SITE_DEFAULT_TEXT": "#10204b",
+    "SITE_DEFAULT_HERO_IMAGE": "/assets/hero-lanchonete-2.webp"
   },
   "kv_namespaces": [
     {

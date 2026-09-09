@@ -1,19 +1,22 @@
 <!doctype html>
-<html lang="pt-BR">
+<html lang="pt-BR" data-brand-style="bold">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#1746a2">
   <meta name="robots" content="noindex,nofollow">
   <title>Admin | Lanchonete 2</title>
+  <link id="siteFavicon" rel="icon" href="assets/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="admin.css">
   <link rel="stylesheet" href="promo-order-admin.css">
   <link rel="stylesheet" href="admin-theme.css">
+  <link rel="stylesheet" href="site-branding.css">
+  <link rel="stylesheet" href="admin-branding.css">
 </head>
-<body>
+<body class="admin-view">
   <main class="admin-shell">
     <section class="login-panel" id="loginPanel">
-      <div class="login-brand"><span class="admin-mark">2</span><div><strong>Lanchonete 2</strong><small>Área administrativa</small></div></div>
+      <div class="login-brand"><span class="admin-mark"><img class="admin-logo" data-brand-logo src="assets/favicon.svg" alt=""></span><div><strong data-brand-name>Lanchonete 2</strong><small data-brand-subtitle>Peça pelo celular</small></div></div>
       <h1>Entrar no painel</h1>
       <p>Use a senha de administrador para gerenciar produtos, promoções e acompanhar os pedidos.</p>
       <form id="loginForm">
@@ -29,7 +32,7 @@
 
     <div id="adminApp" hidden>
       <header class="admin-head">
-        <div><span>GESTÃO DO DIA</span><h1>Central da Lanchonete 2</h1><p>Pedidos, produtos, promoções e WhatsApp.</p></div>
+        <div><span>GESTÃO DO DIA</span><h1 data-brand-admin-title>Painel da Lanchonete 2</h1><p>Pedidos, produtos, promoções, aparência e WhatsApp.</p></div>
         <div class="head-actions"><a href="/" class="back-link">Ver site</a><button type="button" class="back-link button-link" id="logoutButton">Sair</button></div>
       </header>
 
@@ -37,6 +40,7 @@
         <button type="button" class="tab-button active" data-tab="dashboard">Pedidos</button>
         <button type="button" class="tab-button" data-tab="products">Produtos</button>
         <button type="button" class="tab-button" data-tab="promo">Promoção</button>
+        <button type="button" class="tab-button" data-tab="appearance">Aparência</button>
       </nav>
 
       <section class="tab-panel active" id="tab-dashboard">
@@ -134,7 +138,82 @@
         </section>
       </section>
 
-      <p class="security-note">O painel não possui link no cardápio público e as alterações exigem a senha de administrador.</p>
+      <section class="tab-panel" id="tab-appearance">
+        <div class="panel-heading"><div><span>IDENTIDADE</span><h2>Aparência do site</h2></div></div>
+        <section class="admin-card branding-card">
+          <div>
+            <div class="card-title"><h3>Personalize do seu jeito</h3><span>prévia ao vivo</span></div>
+            <p class="branding-intro">Troque nome, textos, logo, capa, fundo e cores. As mudanças aparecem no cardápio e na identidade deste painel.</p>
+          </div>
+
+          <form id="brandingForm">
+            <div class="branding-layout">
+              <div class="branding-fields">
+                <section class="branding-group">
+                  <h3>Nome e chamada</h3>
+                  <p>Esses textos aparecem no topo e na capa do cardápio.</p>
+                  <label>Nome da lanchonete<input id="brandName" type="text" maxlength="80" required></label>
+                  <label>Texto abaixo do nome<input id="brandSubtitle" type="text" maxlength="100" required></label>
+                  <label>Título principal<textarea id="brandHeroTitle" rows="3" maxlength="120" required></textarea><small>Use Enter para quebrar a linha.</small></label>
+                  <label>Descrição da capa<textarea id="brandHeroText" rows="3" maxlength="240" required></textarea></label>
+                </section>
+
+                <section class="branding-group branding-media">
+                  <div><h3>Logo e imagens</h3><p>Você pode voltar às imagens originais a qualquer momento.</p></div>
+                  <div class="branding-upload">
+                    <div class="branding-thumb logo"><img id="brandLogoPreview" alt="Prévia da logo"><span id="brandLogoEmpty">Sem logo</span></div>
+                    <div class="branding-upload-actions">
+                      <input class="native-file-input" id="brandLogoInput" type="file" accept="image/jpeg,image/png,image/webp">
+                      <label class="image-picker" for="brandLogoInput"><span class="image-picker-plus">+</span><span class="image-picker-text"><strong>Trocar logo pequena</strong><small id="brandLogoFileName">Usando a imagem original</small></span><span class="image-picker-arrow">›</span></label>
+                      <button type="button" class="secondary-small danger-outline" id="removeBrandLogo" hidden>Usar logo original</button>
+                    </div>
+                  </div>
+                  <div class="branding-upload">
+                    <div class="branding-thumb wide"><img id="brandHeroPreview" alt="Prévia da imagem de capa"><span id="brandHeroEmpty">Sem capa</span></div>
+                    <div class="branding-upload-actions">
+                      <input class="native-file-input" id="brandHeroInput" type="file" accept="image/jpeg,image/png,image/webp">
+                      <label class="image-picker" for="brandHeroInput"><span class="image-picker-plus">+</span><span class="image-picker-text"><strong>Trocar imagem de capa</strong><small id="brandHeroFileName">Usando a imagem original</small></span><span class="image-picker-arrow">›</span></label>
+                      <button type="button" class="secondary-small danger-outline" id="removeBrandHero" hidden>Usar capa original</button>
+                    </div>
+                  </div>
+                  <div class="branding-upload">
+                    <div class="branding-thumb wide"><img id="brandBackgroundPreview" alt="Prévia da imagem de fundo"><span id="brandBackgroundEmpty">Sem fundo</span></div>
+                    <div class="branding-upload-actions">
+                      <input class="native-file-input" id="brandBackgroundInput" type="file" accept="image/jpeg,image/png,image/webp">
+                      <label class="image-picker" for="brandBackgroundInput"><span class="image-picker-plus">+</span><span class="image-picker-text"><strong>Adicionar imagem de fundo</strong><small id="brandBackgroundFileName">Usando a cor original</small></span><span class="image-picker-arrow">›</span></label>
+                      <button type="button" class="secondary-small danger-outline" id="removeBrandBackground" hidden>Remover fundo</button>
+                    </div>
+                  </div>
+                </section>
+
+                <section class="branding-group branding-colors">
+                  <div><h3>Cores</h3><p>Escolha uma paleta legível e com bom contraste.</p></div>
+                  <div class="color-grid">
+                    <label class="color-field"><input id="brandPrimary" type="color"><span>Principal</span><small>Botões e destaques</small></label>
+                    <label class="color-field"><input id="brandAccent" type="color"><span>Acento</span><small>WhatsApp e detalhes</small></label>
+                    <label class="color-field"><input id="brandBackground" type="color"><span>Fundo</span><small>Fundo da página</small></label>
+                    <label class="color-field"><input id="brandSurface" type="color"><span>Cartões</span><small>Produtos e painéis</small></label>
+                    <label class="color-field"><input id="brandText" type="color"><span>Texto</span><small>Texto principal</small></label>
+                  </div>
+                </section>
+              </div>
+
+              <aside class="brand-live-preview" id="brandLivePreview">
+                <div class="brand-preview-head"><span class="brand-preview-mark"><img id="brandPreviewLogo" alt=""></span><span><strong id="brandPreviewName">Nome da lanchonete</strong><small id="brandPreviewSubtitle">Cardápio digital</small></span></div>
+                <div class="brand-preview-hero" id="brandPreviewHero"><div class="brand-preview-copy"><span>PRÉVIA DO SITE</span><strong id="brandPreviewHeroTitle">Seu título principal</strong></div></div>
+              </aside>
+            </div>
+
+            <div class="branding-actions">
+              <button type="submit" class="save-button" id="saveBranding">Salvar aparência</button>
+              <button type="button" class="secondary-button" id="resetBranding">Restaurar visual original</button>
+            </div>
+            <p class="status" id="brandingStatus" aria-live="polite"></p>
+          </form>
+        </section>
+      </section>
+
+      <p class="security-note">No APK, o painel abre automaticamente com a chave exclusiva deste aplicativo. No navegador, o acesso continua protegido.</p>
     </div>
   </main>
 
@@ -174,10 +253,12 @@
       loginPassword.type = showLoginPassword.checked ? 'text' : 'password';
     });
   </script>
+  <script src="site-branding.js"></script>
   <script src="admin.js"></script>
   <script src="admin-orders.js"></script>
   <script src="admin-extra.js"></script>
   <script src="promo-order-admin.js"></script>
   <script src="admin-reset.js"></script>
+  <script src="admin-branding.js"></script>
 </body>
 </html>

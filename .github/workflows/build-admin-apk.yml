@@ -18,6 +18,8 @@ concurrency:
 jobs:
   build-apk:
     runs-on: ubuntu-latest
+    env:
+      ADMIN_APP_TOKEN: ${{ secrets.ADMIN_APP_TOKEN }}
 
     steps:
       - name: Checkout
@@ -34,30 +36,46 @@ jobs:
         with:
           gradle-version: '8.10.2'
 
+      - name: Validar chave exclusiva do APK
+        shell: bash
+        run: |
+          if [ -z "$ADMIN_APP_TOKEN" ]; then
+            echo "::notice::Build ignorado: configure o secret ADMIN_APP_TOKEN para gerar o APK."
+            exit 0
+          fi
+          if [ "${#ADMIN_APP_TOKEN}" -lt 32 ]; then
+            echo "::error::O secret ADMIN_APP_TOKEN precisa ter pelo menos 32 caracteres."
+            exit 1
+          fi
+
       - name: Build APK
+        if: env.ADMIN_APP_TOKEN != ''
         working-directory: android-admin-app
-        run: gradle --no-daemon :app:assembleDebug
+        run: gradle --no-daemon :app:assembleDebug -PadminAppToken="$ADMIN_APP_TOKEN"
 
       - name: Prepare APK
+        if: env.ADMIN_APP_TOKEN != ''
         run: |
           mkdir -p apk
-          cp android-admin-app/app/build/outputs/apk/debug/app-debug.apk apk/Lanchonete-2-Admin-v1.0.apk
+          cp android-admin-app/app/build/outputs/apk/debug/app-debug.apk apk/Lanchonete-2-Admin-v1.1.apk
           cp android-admin-app/app/build/outputs/apk/debug/app-debug.apk apk/Lanchonete-2-Admin.apk
 
       - name: Upload artifact
+        if: env.ADMIN_APP_TOKEN != ''
         uses: actions/upload-artifact@v4
         with:
-          name: Lanchonete-2-Admin-v1.0
-          path: apk/Lanchonete-2-Admin-v1.0.apk
+          name: Lanchonete-2-Admin-v1.1
+          path: apk/Lanchonete-2-Admin-v1.1.apk
 
       - name: Save APK in repository
+        if: env.ADMIN_APP_TOKEN != ''
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add apk/Lanchonete-2-Admin.apk apk/Lanchonete-2-Admin-v1.0.apk
+          git add apk/Lanchonete-2-Admin.apk apk/Lanchonete-2-Admin-v1.1.apk
           if git diff --cached --quiet; then
             echo "APK sem alterações."
             exit 0
           fi
-          git commit -m "Atualizar APK Lanchonete 2 v1.0 [skip ci]"
+          git commit -m "Atualizar APK Lanchonete 2 v1.1 [skip ci]"
           git push

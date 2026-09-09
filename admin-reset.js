@@ -39,10 +39,14 @@
   });
 })();
 
-// No APK administrativo não existe tela de login: o próprio app é reconhecido pelo backend.
+// No APK administrativo não existe formulário: uma chave exclusiva é entregue
+// pelo app nativo e validada pelo mesmo backend do painel web.
 (() => {
   const isAdminApp = (navigator.userAgent || "").includes("LanchoneteAdminApp/");
   if (!isAdminApp) return;
+  const token = typeof getAdminAppToken === "function" ? getAdminAppToken() : "";
+  if (!token) return;
+  adminAppToken = token;
 
   const loginPanel = document.querySelector("#loginPanel");
   const adminApp = document.querySelector("#adminApp");

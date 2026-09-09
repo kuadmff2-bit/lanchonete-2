@@ -166,7 +166,10 @@ $("#recentOrders").addEventListener("click", async (event) => {
 // o painel abre direto sem pedir a senha novamente.
 async function restoreAdminSession() {
   try {
-    const response = await fetch("/api/orders", { cache: "no-store", credentials: "include" });
+    const headers = {};
+    const appToken = typeof getAdminAppToken === "function" ? getAdminAppToken() : "";
+    if (appToken) headers["x-admin-app-token"] = appToken;
+    const response = await fetch("/api/orders", { cache: "no-store", credentials: "include", headers });
     if (!response.ok) return;
     const data = await response.json();
     $("#loginPanel").hidden = true;
