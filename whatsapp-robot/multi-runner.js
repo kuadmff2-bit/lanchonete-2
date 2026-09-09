@@ -26,6 +26,7 @@ function startInstance(instance) {
       ...process.env,
       ...instance,
       DISABLE_HTTP_SERVER: '1',
+      ROBOT_SUPERVISED: '1',
     },
     stdio: ['inherit', 'inherit', 'inherit', 'ipc'],
   });

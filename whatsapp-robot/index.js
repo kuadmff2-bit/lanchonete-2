@@ -9,6 +9,7 @@ const ROBOT_API_BASE = String(process.env.ROBOT_API_BASE || process.env.LANCHONE
 const ROBOT_WEBHOOK_TOKEN = String(process.env.ROBOT_WEBHOOK_TOKEN || process.env.LANCHONETE_ROBOT_WEBHOOK_TOKEN || '');
 const SESSION_NAME = String(process.env.WPP_SESSION || process.env.LANCHONETE_WPP_SESSION || 'lanchonete-2-whatsapp');
 const TOKEN_DIR = String(process.env.WPP_TOKEN_PATH || path.join(process.cwd(), 'tokens'));
+const SUPERVISED = process.env.ROBOT_SUPERVISED === '1';
 const QR_ACCESS_TOKEN = String(process.env.QR_ACCESS_TOKEN || crypto.randomBytes(20).toString('hex'));
 const ROBOT_CONTROL_TOKEN = String(process.env.ROBOT_CONTROL_TOKEN || QR_ACCESS_TOKEN);
 const CHROME_PATH = process.env.CHROME_PATH || '/usr/bin/chromium';
@@ -169,7 +170,13 @@ async function pollConnectionCommand() {
     if (!command?.id || command.id === lastCommandId) return;
     lastCommandId = String(command.id);
     if (command.action === 'reset' || command.action === 'restart') {
-      await restartWhatsApp({ clearSession: command.action === 'reset' });
+      const clearSession = command.action === 'reset';
+      if (SUPERVISED) {
+        await stopWhatsApp({ logout: clearSession, clearSession });
+        await syncConnectionState();
+        process.exit(0);
+      }
+      await restartWhatsApp({ clearSession });
     }
   } catch (error) {
     logBridgeWarning(`Não foi possível consultar comandos do painel (${error.message}).`);
