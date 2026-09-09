@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#1746a2">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Admin | Lanchonete 2</title>
+  <link rel="stylesheet" href="admin.css">
+  <link rel="stylesheet" href="promo-order-admin.css">
+  <link rel="stylesheet" href="admin-theme.css">
+</head>
+<body>
+  <main class="admin-shell">
+    <section class="login-panel" id="loginPanel">
+      <div class="login-brand"><span class="admin-mark">2</span><div><strong>Lanchonete 2</strong><small>Área administrativa</small></div></div>
+      <h1>Entrar no painel</h1>
+      <p>Use a senha de administrador para gerenciar produtos, promoções e acompanhar os pedidos.</p>
+      <form id="loginForm">
+        <label>Senha<input id="loginPassword" type="password" autocomplete="current-password" placeholder="Senha do administrador" required></label>
+        <label class="toggle" style="justify-content:flex-start; margin-top:-4px;">
+          <input id="showLoginPassword" type="checkbox">
+          <span>Mostrar senha</span>
+        </label>
+        <button class="save-button" type="submit">Entrar</button>
+        <p class="status" id="loginStatus" aria-live="polite"></p>
+      </form>
+    </section>
+
+    <div id="adminApp" hidden>
+      <header class="admin-head">
+        <div><span>GESTÃO DO DIA</span><h1>Central da Lanchonete 2</h1><p>Pedidos, produtos, promoções e WhatsApp.</p></div>
+        <div class="head-actions"><a href="/" class="back-link">Ver site</a><button type="button" class="back-link button-link" id="logoutButton">Sair</button></div>
+      </header>
+
+      <nav class="admin-tabs" aria-label="Seções do painel">
+        <button type="button" class="tab-button active" data-tab="dashboard">Pedidos</button>
+        <button type="button" class="tab-button" data-tab="products">Produtos</button>
+        <button type="button" class="tab-button" data-tab="promo">Promoção</button>
+      </nav>
+
+      <section class="tab-panel active" id="tab-dashboard">
+        <div class="panel-heading"><div><span>RESUMO</span><h2>Pedidos</h2></div><button type="button" class="secondary-small" id="refreshOrders">Atualizar</button></div>
+        <p class="panel-note">Os números contam os pedidos registrados pelo site. Pedidos cancelados deixam de entrar nos totais.</p>
+        <div class="stats-grid">
+          <article class="stat-card"><small>Pedidos hoje</small><strong id="todayOrders">0</strong></article>
+          <article class="stat-card"><small>Total de pedidos</small><strong id="totalOrders">0</strong></article>
+          <article class="stat-card"><small>Valor hoje</small><strong id="todayValue">R$ 0,00</strong></article>
+          <article class="stat-card"><small>Valor acumulado</small><strong id="totalValue">R$ 0,00</strong></article>
+        </div>
+        <div class="admin-card recent-card">
+          <div class="card-title"><h3>Pedidos recentes</h3><span>últimos 80</span></div>
+          <div id="recentOrders" class="recent-orders"><p class="empty-admin">Ainda não há pedidos registrados.</p></div>
+        </div>
+        <p class="status" id="dashboardStatus" aria-live="polite"></p>
+      </section>
+
+      <section class="tab-panel" id="tab-products">
+        <div class="panel-heading"><div><span>CARDÁPIO</span><h2>Produtos</h2></div></div>
+        <div class="admin-grid">
+          <section class="admin-card">
+            <div class="card-title"><h3 id="productFormTitle">Adicionar produto</h3><button type="button" class="text-button" id="cancelEdit" hidden>Cancelar edição</button></div>
+            <form id="productForm">
+              <label>Nome<input id="productName" type="text" maxlength="80" placeholder="Ex.: Coca-Cola lata" required></label>
+              <div class="two-fields">
+                <label>Preço<input id="productPrice" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0,00" required></label>
+                <label>Categoria<select id="productCategory"><option value="lanche">Lanche</option><option value="bebida">Bebida</option></select></label>
+              </div>
+              <label>Descrição<textarea id="productDescription" rows="3" maxlength="220" placeholder="Descrição curta do produto"></textarea></label>
+
+              <div class="image-field">
+                <span class="field-title">Foto do produto</span>
+                <input class="native-file-input" id="productImage" type="file" accept="image/jpeg,image/png,image/webp">
+                <label class="image-picker" for="productImage">
+                  <span class="image-picker-plus">+</span>
+                  <span class="image-picker-text"><strong>Selecionar uma imagem</strong><small id="productFileName">JPG, PNG ou WEBP</small></span>
+                  <span class="image-picker-arrow">›</span>
+                </label>
+                <div class="image-action-row" id="productImageTools" hidden>
+                  <button type="button" class="secondary-small" id="editProductImage">Editar imagem</button>
+                  <button type="button" class="secondary-small danger-outline" id="removeProductImage">Remover imagem</button>
+                </div>
+              </div>
+
+              <div class="image-preview" id="productPreview" hidden><img id="productPreviewImage" alt="Foto atual ou nova prévia do produto"></div>
+              <label class="toggle"><input id="productAvailable" type="checkbox" checked><span>Produto disponível</span></label>
+              <button class="save-button" type="submit" id="productSaveButton">Adicionar produto</button>
+              <p class="status" id="productStatus" aria-live="polite"></p>
+            </form>
+          </section>
+
+          <section class="admin-card product-list-card">
+            <div class="card-title"><h3>Produtos cadastrados</h3><span id="productCount">0 produtos</span></div>
+            <div class="product-list" id="productList"></div>
+          </section>
+        </div>
+      </section>
+
+      <section class="tab-panel" id="tab-promo">
+        <div class="panel-heading"><div><span>DESTAQUE</span><h2>Promoção</h2></div></div>
+        <section class="admin-card promo-admin-card">
+          <form id="promoForm">
+            <label>Título da promoção<input id="promoTitle" type="text" maxlength="80" placeholder="Ex.: 3 X-Salada + refrigerante" required></label>
+            <label>Pequena descrição<textarea id="promoDescription" rows="3" maxlength="240" placeholder="Ex.: Combo promocional válido hoje."></textarea></label>
+
+            <div class="promo-order-settings">
+              <strong>Pedido direto pela promoção</strong>
+              <p>Defina o valor final do combo. Quando ativado, o cliente toca na promoção e vai direto para preencher os dados do pedido.</p>
+              <label>Valor da promoção<input id="promoPrice" type="number" min="0" max="10000" step="0.01" inputmode="decimal" placeholder="Ex.: 20,00"></label>
+              <label class="toggle"><input id="promoOrderEnabled" type="checkbox"><span>Ao tocar na promoção, abrir o pedido com este valor</span></label>
+            </div>
+
+            <div class="image-field">
+              <span class="field-title">Foto da promoção</span>
+              <input class="native-file-input" id="promoImage" type="file" accept="image/jpeg,image/png,image/webp">
+              <label class="image-picker" for="promoImage">
+                <span class="image-picker-plus">+</span>
+                <span class="image-picker-text"><strong>Selecionar uma imagem</strong><small id="promoFileName">JPG, PNG ou WEBP</small></span>
+                <span class="image-picker-arrow">›</span>
+              </label>
+              <div class="image-action-row" id="promoImageTools" hidden>
+                <button type="button" class="secondary-small" id="editPromoImage">Editar imagem</button>
+                <button type="button" class="secondary-small danger-outline" id="removePromoImage">Remover imagem</button>
+              </div>
+              <small class="field-hint">Depois de escolher, você pode recortar, aproximar e reposicionar a foto.</small>
+            </div>
+
+            <div class="preview" id="preview" hidden><img id="previewImage" alt="Prévia da promoção"><div><span>PROMOÇÃO</span><strong id="previewTitle"></strong><p id="previewDescription"></p><strong class="promo-order-preview-price" id="previewPromoPrice" hidden></strong><small class="promo-order-preview-hint" id="previewPromoHint"></small></div></div>
+            <label class="toggle"><input id="promoActive" type="checkbox" checked><span>Mostrar promoção no site</span></label>
+            <button type="submit" class="save-button" id="promoSaveButton">Publicar promoção</button>
+            <button type="button" class="secondary-button" id="hidePromoButton">Ocultar promoção atual</button>
+            <p class="status" id="promoStatus" aria-live="polite"></p>
+          </form>
+        </section>
+      </section>
+
+      <p class="security-note">O painel não possui link no cardápio público e as alterações exigem a senha de administrador.</p>
+    </div>
+  </main>
+
+  <div class="image-editor-backdrop" id="imageEditorBackdrop" hidden>
+    <section class="image-editor" role="dialog" aria-modal="true" aria-labelledby="imageEditorTitle">
+      <div class="image-editor-head">
+        <div><small>AJUSTAR FOTO</small><h2 id="imageEditorTitle">Editar imagem</h2></div>
+        <button type="button" class="icon-close" id="closeImageEditor" aria-label="Fechar">×</button>
+      </div>
+
+      <div class="editor-stage"><canvas id="imageEditorCanvas" width="800" height="600"></canvas></div>
+
+      <div class="editor-controls">
+        <label>Formato
+          <select id="editorAspect">
+            <option value="4:3">4:3</option>
+            <option value="1:1">Quadrado</option>
+            <option value="16:9">16:9</option>
+          </select>
+        </label>
+        <label>Zoom <span id="zoomValue">1.00x</span><input id="editorZoom" type="range" min="1" max="3" step="0.01" value="1"></label>
+        <label>Posição horizontal<input id="editorX" type="range" min="0" max="100" step="1" value="50"></label>
+        <label>Posição vertical<input id="editorY" type="range" min="0" max="100" step="1" value="50"></label>
+      </div>
+
+      <div class="editor-actions">
+        <button type="button" class="secondary-button" id="cancelImageEditor">Cancelar</button>
+        <button type="button" class="save-button" id="saveImageEditor">Usar esta imagem</button>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    const showLoginPassword = document.getElementById('showLoginPassword');
+    const loginPassword = document.getElementById('loginPassword');
+    showLoginPassword.addEventListener('change', () => {
+      loginPassword.type = showLoginPassword.checked ? 'text' : 'password';
+    });
+  </script>
+  <script src="admin.js"></script>
+  <script src="admin-orders.js"></script>
+  <script src="admin-extra.js"></script>
+  <script src="promo-order-admin.js"></script>
+  <script src="admin-reset.js"></script>
+</body>
+</html>

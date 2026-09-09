@@ -1,0 +1,17 @@
+<resources>
+    <style name="Theme.LanchoneteAdmin" parent="android:style/Theme.Material.NoActionBar">
+        <item name="android:fontFamily">sans</item>
+        <item name="android:windowBackground">#EEF4FF</item>
+        <item name="android:statusBarColor">#1746A2</item>
+        <item name="android:navigationBarColor">#EEF4FF</item>
+        <item name="android:colorAccent">#1746A2</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">true</item>
+
+        <!-- Android 12+: o splash do sistema fica neutro e some rápido; a SplashView nativa mostra o CV. -->
+        <item name="android:windowSplashScreenBackground">#EEF4FF</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/splash_blank</item>
+        <item name="android:windowSplashScreenIconBackgroundColor">#EEF4FF</item>
+        <item name="android:windowSplashScreenAnimationDuration">50</item>
+    </style>
+</resources>

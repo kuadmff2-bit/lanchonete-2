@@ -1,0 +1,63 @@
+name: Gerar APK administrativo — Lanchonete 2
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'android-admin-app/**'
+      - '.github/workflows/build-admin-apk.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-lanchonete-2-admin-apk
+  cancel-in-progress: true
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.10.2'
+
+      - name: Build APK
+        working-directory: android-admin-app
+        run: gradle --no-daemon :app:assembleDebug
+
+      - name: Prepare APK
+        run: |
+          mkdir -p apk
+          cp android-admin-app/app/build/outputs/apk/debug/app-debug.apk apk/Lanchonete-2-Admin-v1.0.apk
+          cp android-admin-app/app/build/outputs/apk/debug/app-debug.apk apk/Lanchonete-2-Admin.apk
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Lanchonete-2-Admin-v1.0
+          path: apk/Lanchonete-2-Admin-v1.0.apk
+
+      - name: Save APK in repository
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add apk/Lanchonete-2-Admin.apk apk/Lanchonete-2-Admin-v1.0.apk
+          if git diff --cached --quiet; then
+            echo "APK sem alterações."
+            exit 0
+          fi
+          git commit -m "Atualizar APK Lanchonete 2 v1.0 [skip ci]"
+          git push

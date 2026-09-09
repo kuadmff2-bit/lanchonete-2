@@ -1,0 +1,19 @@
+{
+  "name": "lanchonete-2-whatsapp-robot",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Ponte 24h entre WhatsApp e o motor de pedidos do cardápio digital.",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "check": "node --check index.js"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "dependencies": {
+    "@wppconnect-team/wppconnect": "2.3.2",
+    "puppeteer": "24.43.1",
+    "puppeteer-core": "24.43.1"
+  }
+}

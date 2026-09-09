@@ -1,0 +1,4 @@
+ADMIN_PASSWORD=defina-a-senha-do-administrador
+ROBOT_SERVICE_URL=https://servico-do-robo-2.up.railway.app
+ROBOT_CONTROL_TOKEN=mesmo-segredo-control-do-servico
+ROBOT_WEBHOOK_TOKEN=mesmo-segredo-webhook-do-servico

@@ -1,0 +1,9 @@
+node_modules/
+whatsapp-robot/node_modules/
+whatsapp-robot/tokens/
+.env
+.dev.vars
+android-admin-app/.gradle/
+android-admin-app/app/build/
+*.jks
+*.keystore

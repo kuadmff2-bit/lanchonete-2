@@ -1,0 +1,14 @@
+<resources>
+    <!-- Configuração pública do Firebase para com.lanchonete.dois.admin -->
+    <string name="firebase_api_key">AIzaSyBxBWHnh0y5sExe81CIoQ6cV6czDFIHDGs</string>
+    <string name="firebase_app_id">1:35803389315:android:2d8d6884073057cb05aab6</string>
+    <string name="firebase_project_id">lanchonete-admin</string>
+    <string name="firebase_messaging_sender_id">35803389315</string>
+
+    <!-- Nomes padrão usados pelo Firebase Android para inicialização automática -->
+    <string name="google_app_id">1:35803389315:android:2d8d6884073057cb05aab6</string>
+    <string name="gcm_defaultSenderId">35803389315</string>
+    <string name="google_api_key">AIzaSyBxBWHnh0y5sExe81CIoQ6cV6czDFIHDGs</string>
+    <string name="project_id">lanchonete-admin</string>
+    <string name="google_storage_bucket">lanchonete-admin.firebasestorage.app</string>
+</resources>

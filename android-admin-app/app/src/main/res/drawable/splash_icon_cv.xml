@@ -1,0 +1,37 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Marca CV limpa para a splash nativa do Android -->
+    <path
+        android:fillColor="@android:color/transparent"
+        android:strokeColor="#1746A2"
+        android:strokeWidth="10"
+        android:strokeLineCap="square"
+        android:strokeLineJoin="round"
+        android:pathData="M70,27 L42,27 C28,27 21,38 21,54 C21,70 28,81 42,81 L60,81" />
+    <path
+        android:fillColor="@android:color/transparent"
+        android:strokeColor="#FFC857"
+        android:strokeWidth="6"
+        android:strokeLineCap="square"
+        android:strokeLineJoin="round"
+        android:pathData="M70,27 L42,27 C28,27 21,38 21,54 C21,70 28,81 42,81 L60,81" />
+
+    <path
+        android:fillColor="@android:color/transparent"
+        android:strokeColor="#1746A2"
+        android:strokeWidth="10"
+        android:strokeLineCap="square"
+        android:strokeLineJoin="miter"
+        android:pathData="M58,42 L72,82 L91,27" />
+    <path
+        android:fillColor="@android:color/transparent"
+        android:strokeColor="#FFC857"
+        android:strokeWidth="6"
+        android:strokeLineCap="square"
+        android:strokeLineJoin="miter"
+        android:pathData="M58,42 L72,82 L91,27" />
+</vector>

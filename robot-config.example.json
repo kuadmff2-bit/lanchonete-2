@@ -1,0 +1,11 @@
+{
+  "enabled": false,
+  "greeting": "Olá! 👋 Sou o atendimento automático da Lanchonete 2. Como posso ajudar?",
+  "fallback": "Não consegui entender sua mensagem. Digite menu para ver as opções ou aguarde um atendente.",
+  "humanHandoff": true,
+  "businessHoursOnly": false,
+  "openTime": "18:00",
+  "closeTime": "23:59",
+  "deliveryFee": 0,
+  "menuText": "1 - Ver cardápio\n2 - Fazer pedido\n3 - Acompanhar pedido\n4 - Falar com atendente"
+}
