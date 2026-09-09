@@ -234,9 +234,13 @@ async function authorizeWithBaseWorker(request, env, ctx) {
   return baseWorker.fetch(authRequest, env, ctx);
 }
 
-function robotServiceConfig(env) {
+function robotServiceConfig(env, request) {
   const rawUrl = String(env.ROBOT_SERVICE_URL || "").trim().replace(/\/$/, "");
-  const token = String(env.ROBOT_CONTROL_TOKEN || "").trim();
+  const token = String(
+    request?.headers?.get("x-admin-password")
+    || env.ROBOT_CONTROL_TOKEN
+    || ""
+  ).trim();
   if (!rawUrl || !token) return { configured: false, url: "", token: "" };
 
   try {
@@ -258,7 +262,7 @@ async function handleRemoteRobotConnection(request, env, ctx) {
   if (!authResponse.ok) return authResponse;
 
   const responseHeaders = adminAuthHeaders(authResponse);
-  const service = robotServiceConfig(env);
+  const service = robotServiceConfig(env, request);
   if (!service.configured) {
     return json({
       configured: false,
@@ -365,7 +369,9 @@ function cleanConnectionState(data) {
 }
 
 async function handleRobotConnection(request, env, ctx) {
-  if (!robotTokenConfigured(env)) return handleRemoteRobotConnection(request, env, ctx);
+  if (String(env.ROBOT_SERVICE_URL || "").trim() || !robotTokenConfigured(env)) {
+    return handleRemoteRobotConnection(request, env, ctx);
+  }
 
   const authResponse = await authorizeWithBaseWorker(request, env, ctx);
   if (!authResponse.ok) return authResponse;

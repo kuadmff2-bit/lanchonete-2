@@ -13,6 +13,7 @@ const SUPERVISED = process.env.ROBOT_SUPERVISED === '1';
 const QR_ACCESS_TOKEN = String(process.env.QR_ACCESS_TOKEN || crypto.randomBytes(20).toString('hex'));
 const ROBOT_CONTROL_TOKEN = String(process.env.ROBOT_CONTROL_TOKEN || QR_ACCESS_TOKEN);
 const CHROME_PATH = process.env.CHROME_PATH || '/usr/bin/chromium';
+const DIRECT_CONTROL = process.env.ROBOT_DIRECT_CONTROL === '1';
 
 let clientRef = null;
 let connected = false;
@@ -132,7 +133,7 @@ function logBridgeWarning(message) {
 }
 
 async function syncConnectionState() {
-  if (!ROBOT_WEBHOOK_TOKEN) return;
+  if (DIRECT_CONTROL || !ROBOT_WEBHOOK_TOKEN) return;
   if (stateSyncRunning) {
     stateSyncPending = true;
     return;
@@ -158,11 +159,16 @@ async function syncConnectionState() {
 }
 
 function queueConnectionSync() {
-  setImmediate(syncConnectionState);
+  if (typeof process.send === 'function') {
+    try {
+      process.send({ type: 'robot-state', state: statusPayload(true) });
+    } catch (_) {}
+  }
+  if (!DIRECT_CONTROL) setImmediate(syncConnectionState);
 }
 
 async function pollConnectionCommand() {
-  if (!ROBOT_WEBHOOK_TOKEN || commandPollRunning) return;
+  if (DIRECT_CONTROL || !ROBOT_WEBHOOK_TOKEN || commandPollRunning) return;
   commandPollRunning = true;
   try {
     const url = `${ROBOT_API_BASE}/api/robot/connection/command?after=${encodeURIComponent(lastCommandId)}`;
@@ -364,7 +370,7 @@ if (process.env.DISABLE_HTTP_SERVER !== '1') {
   });
 }
 
-const connectionSyncTimer = setInterval(syncConnectionState, 5000);
+const connectionSyncTimer = setInterval(queueConnectionSync, 5000);
 const commandPollTimer = setInterval(pollConnectionCommand, 3000);
 const clientWatchTimer = setInterval(refreshClientState, 5000);
 connectionSyncTimer.unref();
@@ -461,6 +467,7 @@ async function startWhatsApp() {
   connected = false;
   authState = 'starting';
   lastError = '';
+  queueConnectionSync();
 
   try {
     removeChromiumLocks();
@@ -543,6 +550,29 @@ async function startWhatsApp() {
     starting = false;
   }
 }
+
+let supervisorControlRunning = false;
+process.on('message', async (message) => {
+  if (!DIRECT_CONTROL || message?.type !== 'robot-control' || supervisorControlRunning) return;
+  const action = message.action === 'reset' ? 'reset' : message.action === 'restart' ? 'restart' : '';
+  if (!action) return;
+
+  supervisorControlRunning = true;
+  try {
+    const clearSession = action === 'reset';
+    await stopWhatsApp({ logout: clearSession, clearSession });
+    queueConnectionSync();
+    if (typeof process.send === 'function') {
+      try { process.send({ type: 'robot-control-accepted', action }); } catch (_) {}
+    }
+    process.exit(0);
+  } catch (error) {
+    lastError = String(error?.message || error);
+    authState = 'error';
+    queueConnectionSync();
+    process.exit(1);
+  }
+});
 
 process.on('unhandledRejection', (error) => {
   lastError = String(error?.message || error);

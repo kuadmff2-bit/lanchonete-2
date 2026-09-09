@@ -1,42 +1,92 @@
 const http = require('http');
 const path = require('path');
+const crypto = require('crypto');
 const { fork } = require('child_process');
 
 const PORT = Number(process.env.PORT || 3000);
 const children = new Map();
+const states = new Map();
 const startupTimers = [];
 let shuttingDown = false;
 
+function normalizeInstance(item, index) {
+  const name = String(item?.name || `instancia-${index + 1}`);
+  const rawSlug = String(item?.slug || item?.WPP_SESSION || item?.LANCHONETE_WPP_SESSION || name);
+  const slug = rawSlug.trim().toLowerCase().replace(/[^a-z0-9._-]+/g, '-').replace(/^-+|-+$/g, '');
+  if (!slug) throw new Error(`Identificador inválido para ${name}.`);
+  return {
+    ...item,
+    name,
+    slug,
+    ROBOT_CONTROL_TOKEN: String(item?.ROBOT_CONTROL_TOKEN || process.env.ROBOT_CONTROL_TOKEN || ''),
+  };
+}
+
 function readInstances() {
   const raw = String(process.env.ROBOT_INSTANCES_JSON || '').trim();
-  if (!raw) return [{ name: process.env.WPP_SESSION || process.env.LANCHONETE_WPP_SESSION || 'lanchonete' }];
+  if (!raw) {
+    const session = process.env.WPP_SESSION || process.env.LANCHONETE_WPP_SESSION || 'lanchonete';
+    return [normalizeInstance({ name: session, WPP_SESSION: session }, 0)];
+  }
 
   const parsed = JSON.parse(raw);
   if (!Array.isArray(parsed) || parsed.length === 0 || parsed.length > 4) {
     throw new Error('ROBOT_INSTANCES_JSON deve conter de 1 a 4 configurações.');
   }
-  return parsed.map((item, index) => ({ ...item, name: String(item?.name || `instancia-${index + 1}`) }));
+  return parsed.map(normalizeInstance);
 }
 
 const instances = readInstances();
 
 function startInstance(instance) {
+  const { slug: _slug, ...childEnvironment } = instance;
   const child = fork(path.join(__dirname, 'index.js'), [], {
     env: {
       ...process.env,
-      ...instance,
+      ...childEnvironment,
       DISABLE_HTTP_SERVER: '1',
       ROBOT_SUPERVISED: '1',
+      ROBOT_DIRECT_CONTROL: '1',
     },
     detached: process.platform !== 'win32',
     stdio: ['inherit', 'inherit', 'inherit', 'ipc'],
   });
 
   children.set(instance.name, child);
+  states.set(instance.slug, {
+    ok: true,
+    connected: false,
+    qrReady: false,
+    qrImage: null,
+    authState: 'starting',
+    connectedAt: null,
+    lastError: null,
+  });
   console.log(`🚀 Iniciando ${instance.name}.`);
+  child.on('message', (message) => {
+    if (message?.type !== 'robot-state' || !message.state || typeof message.state !== 'object') return;
+    states.set(instance.slug, {
+      ok: true,
+      connected: Boolean(message.state.connected),
+      qrReady: Boolean(message.state.qrReady && message.state.qrImage),
+      qrImage: message.state.qrImage || null,
+      authState: String(message.state.authState || 'starting'),
+      connectedAt: message.state.connectedAt || null,
+      lastError: message.state.lastError || null,
+    });
+  });
   child.on('exit', (code, signal) => {
     children.delete(instance.name);
     terminateProcessTree(child, 'SIGKILL');
+    states.set(instance.slug, {
+      ok: true,
+      connected: false,
+      qrReady: false,
+      qrImage: null,
+      authState: shuttingDown ? 'stopped' : 'restarting',
+      connectedAt: null,
+      lastError: null,
+    });
     console.warn(`⚠️ ${instance.name} encerrou (${signal || code || 0}).`);
     if (!shuttingDown) setTimeout(() => startInstance(instance), 5000).unref();
   });
@@ -63,11 +113,92 @@ for (const [index, instance] of instances.entries()) {
   }, index * 12000));
 }
 
+function sendJson(res, data, status = 200) {
+  res.writeHead(status, {
+    'content-type': 'application/json; charset=utf-8',
+    'cache-control': 'no-store',
+    'x-content-type-options': 'nosniff',
+  });
+  res.end(JSON.stringify(data));
+}
+
+function controlAuthorized(req, instance) {
+  const authorization = String(req.headers.authorization || '');
+  const supplied = authorization.toLowerCase().startsWith('bearer ')
+    ? authorization.slice(7).trim()
+    : '';
+  const expected = String(instance.ROBOT_CONTROL_TOKEN || '');
+  if (!supplied || !expected) return false;
+  const suppliedBuffer = Buffer.from(supplied);
+  const expectedBuffer = Buffer.from(expected);
+  return suppliedBuffer.length === expectedBuffer.length
+    && crypto.timingSafeEqual(suppliedBuffer, expectedBuffer);
+}
+
 const server = http.createServer((req, res) => {
   const url = new URL(req.url, 'http://localhost');
+  const controlMatch = url.pathname.match(/^\/instances\/([^/]+)\/control\/(status|restart|reset)$/);
+
+  if (controlMatch) {
+    let slug = '';
+    try { slug = decodeURIComponent(controlMatch[1]); } catch (_) {}
+    const action = controlMatch[2];
+    const instance = instances.find((item) => item.slug === slug);
+    if (!instance) {
+      sendJson(res, { error: 'Instância não encontrada.' }, 404);
+      return;
+    }
+    if (!controlAuthorized(req, instance)) {
+      sendJson(res, { error: 'Não autorizado.' }, 401);
+      return;
+    }
+
+    if (action === 'status') {
+      if (req.method !== 'GET') {
+        sendJson(res, { error: 'Método não permitido.' }, 405);
+        return;
+      }
+      sendJson(res, states.get(instance.slug) || {
+        ok: true,
+        connected: false,
+        qrReady: false,
+        authState: 'starting',
+      });
+      return;
+    }
+
+    if (req.method !== 'POST') {
+      sendJson(res, { error: 'Método não permitido.' }, 405);
+      return;
+    }
+    const child = children.get(instance.name);
+    if (!child?.connected) {
+      sendJson(res, { error: 'A instância está reiniciando.' }, 503);
+      return;
+    }
+    const previousState = states.get(instance.slug);
+    states.set(instance.slug, {
+      ok: true,
+      connected: false,
+      qrReady: false,
+      qrImage: null,
+      authState: action === 'reset' ? 'resetting' : 'restarting',
+      connectedAt: null,
+      lastError: null,
+    });
+    try {
+      child.send({ type: 'robot-control', action });
+    } catch (_) {
+      if (previousState) states.set(instance.slug, previousState);
+      sendJson(res, { error: 'A instância está reiniciando.' }, 503);
+      return;
+    }
+    sendJson(res, { ok: true, accepted: true, action }, 202);
+    return;
+  }
+
   if (url.pathname !== '/' && url.pathname !== '/health') {
-    res.writeHead(404, { 'content-type': 'text/plain; charset=utf-8' });
-    res.end('Not found');
+    sendJson(res, { error: 'Not found' }, 404);
     return;
   }
 
@@ -76,11 +207,7 @@ const server = http.createServer((req, res) => {
     running: Boolean(children.get(instance.name)?.connected),
   }));
   const ok = running.every((item) => item.running);
-  res.writeHead(ok ? 200 : 503, {
-    'content-type': 'application/json; charset=utf-8',
-    'cache-control': 'no-store',
-  });
-  res.end(JSON.stringify({ ok, instances: running }));
+  sendJson(res, { ok, instances: running }, ok ? 200 : 503);
 });
 
 server.listen(PORT, '0.0.0.0', () => {
