@@ -27,6 +27,8 @@ let stateSyncPending = false;
 let commandPollRunning = false;
 let lastCommandId = '';
 let lastBridgeWarningAt = 0;
+let clientWatchRunning = false;
+let consecutiveClientWatchFailures = 0;
 
 fs.mkdirSync(TOKEN_DIR, { recursive: true });
 lastCommandId = loadLastCommandId();
@@ -364,8 +366,10 @@ if (process.env.DISABLE_HTTP_SERVER !== '1') {
 
 const connectionSyncTimer = setInterval(syncConnectionState, 5000);
 const commandPollTimer = setInterval(pollConnectionCommand, 3000);
+const clientWatchTimer = setInterval(refreshClientState, 5000);
 connectionSyncTimer.unref();
 commandPollTimer.unref();
+clientWatchTimer.unref();
 
 function removeChromiumLocks() {
   const names = new Set(['SingletonLock', 'SingletonSocket', 'SingletonCookie']);
@@ -394,6 +398,61 @@ function scheduleReconnect() {
     startWhatsApp();
   }, 15000);
   reconnectTimer.unref();
+}
+
+function normalizeQrImage(value) {
+  const image = String(value || '');
+  if (!image) return null;
+  return image.startsWith('data:image') ? image : `data:image/png;base64,${image}`;
+}
+
+async function refreshClientState() {
+  if (!clientRef || clientWatchRunning) return;
+  const client = clientRef;
+  clientWatchRunning = true;
+
+  try {
+    const loggedIn = Boolean(await client.isLoggedIn());
+    if (client !== clientRef) return;
+
+    if (loggedIn) {
+      const wasConnected = connected;
+      connected = true;
+      connectedAt ||= new Date().toISOString();
+      qrImage = null;
+      authState = 'inChat';
+      lastError = '';
+      if (!wasConnected) console.log('✅ WhatsApp conectado. Robô ativo.');
+    } else {
+      const state = await client.getConnectionState().catch(() => null);
+      const qr = await client.getQrCode().catch(() => null);
+      if (client !== clientRef) return;
+
+      connected = false;
+      connectedAt = null;
+      const freshQr = normalizeQrImage(qr?.base64Image);
+      if (freshQr) {
+        qrImage = freshQr;
+        authState = 'qr';
+      } else if (state) {
+        authState = String(state);
+      }
+    }
+
+    consecutiveClientWatchFailures = 0;
+    queueConnectionSync();
+  } catch (error) {
+    if (client !== clientRef) return;
+    consecutiveClientWatchFailures += 1;
+    lastError = String(error?.message || error);
+    logBridgeWarning(`Falha ao verificar o WhatsApp (${lastError}).`);
+    if (SUPERVISED && consecutiveClientWatchFailures >= 6) {
+      console.error('❌ Cliente do WhatsApp parou de responder. Reiniciando a instância.');
+      process.exit(1);
+    }
+  } finally {
+    clientWatchRunning = false;
+  }
 }
 
 async function startWhatsApp() {
@@ -440,7 +499,7 @@ async function startWhatsApp() {
       logQR: false,
       autoClose: 0,
       deviceSyncTimeout: 0,
-      waitForLogin: true,
+      waitForLogin: false,
       disableWelcome: true,
       updatesLog: true,
       tokenStore: 'file',
@@ -450,12 +509,10 @@ async function startWhatsApp() {
     });
 
     clientRef = client;
-    connected = true;
-    connectedAt = new Date().toISOString();
-    qrImage = null;
-    authState = 'inChat';
-    queueConnectionSync();
-    console.log('✅ WhatsApp conectado. Robô ativo.');
+    connected = false;
+    connectedAt = null;
+    authState = 'ready';
+    consecutiveClientWatchFailures = 0;
 
     client.onMessage(handleMessage);
     client.onStateChange((state) => {
@@ -468,6 +525,8 @@ async function startWhatsApp() {
       }
       queueConnectionSync();
     });
+    await refreshClientState();
+    if (!connected) console.log('📲 Cliente pronto. Aguardando leitura do QR Code.');
   } catch (error) {
     lastError = String(error?.message || error);
     connected = false;
