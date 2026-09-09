@@ -59,7 +59,7 @@ async function createAdminSession(env) {
 }
 
 async function authorized(request, env) {
-  if (!env.ADMIN_PASSWORD) {
+  if (!env.ADMIN_PASSWORD && !env.ADMIN_PASSWORD_SHA256) {
     return { ok: false, response: json({ error: "Senha de administrador não configurada no Cloudflare." }, 500) };
   }
 
@@ -70,7 +70,7 @@ async function authorized(request, env) {
   }
 
   const password = request.headers.get("x-admin-password") || "";
-  if (password !== env.ADMIN_PASSWORD) {
+  if (!await secretMatches(password, env.ADMIN_PASSWORD, env.ADMIN_PASSWORD_SHA256)) {
     return { ok: false, response: json({ error: "Senha incorreta." }, 401) };
   }
 
@@ -120,6 +120,20 @@ function safePrice(value) {
   const number = Number(value);
   if (!Number.isFinite(number)) return 0;
   return Number(Math.max(0, Math.min(number, 10000)).toFixed(2));
+}
+
+async function sha256Hex(value) {
+  const bytes = new TextEncoder().encode(String(value || ""));
+  const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", bytes));
+  return [...digest].map((byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+async function secretMatches(value, plainSecret, secretHash) {
+  const supplied = String(value || "");
+  if (!supplied) return false;
+  if (plainSecret && supplied === String(plainSecret)) return true;
+  const expectedHash = String(secretHash || "").trim().toLowerCase();
+  return /^[0-9a-f]{64}$/.test(expectedHash) && await sha256Hex(supplied) === expectedHash;
 }
 
 async function getProducts(env) {
@@ -267,8 +281,11 @@ async function createOrder(request, env) {
   const customerName = safeText(body?.customerName, 80);
   const customerPhone = normalizeCustomerPhone(body?.customerPhone);
   const deliveryType = body?.deliveryType === "Retirada" ? "Retirada" : "Entrega";
-  const trustedRobotOrder = Boolean(env.ROBOT_WEBHOOK_TOKEN)
-    && request.headers.get("x-robot-token") === env.ROBOT_WEBHOOK_TOKEN;
+  const trustedRobotOrder = await secretMatches(
+    request.headers.get("x-robot-token"),
+    env.ROBOT_WEBHOOK_TOKEN,
+    env.ROBOT_WEBHOOK_TOKEN_SHA256
+  );
   const deliveryFee = deliveryType === "Entrega" && trustedRobotOrder
     ? Math.min(safePrice(body?.deliveryFee), 1000)
     : 0;

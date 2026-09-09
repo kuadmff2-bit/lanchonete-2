@@ -4,10 +4,9 @@
   "main": "worker-admin-app.js",
   "compatibility_date": "2026-08-27",
   "keep_vars": true,
-  "secrets": {
-    "required": ["ADMIN_PASSWORD"]
-  },
   "vars": {
+    "ADMIN_PASSWORD_SHA256": "3c1ff0e77623f56bdf0eda50d37b7c3568ba4c0a17d87763c50d46fe8dcfae1d",
+    "ROBOT_WEBHOOK_TOKEN_SHA256": "45e6e5656d94c7a39323efbd247cb6ac688a336419dc30c9edefb543617cae0f",
     "FCM_PROJECT_ID": "lanchonete-admin",
     "FCM_ANDROID_API_KEY": "AIzaSyBxBWHnh0y5sExe81CIoQ6cV6czDFIHDGs",
     "FCM_ANDROID_APP_ID": "1:35803389315:android:2d8d6884073057cb05aab6",

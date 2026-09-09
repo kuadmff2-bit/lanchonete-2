@@ -21,3 +21,5 @@ O APK abre o painel próprio da Lanchonete 2 e possui uma identidade diferente d
 O robô usa o cardápio publicado para mostrar itens, montar o carrinho, coletar os dados do cliente e registrar o pedido. A conexão é feita pelo QR Code exibido dentro do APK administrativo.
 
 Veja `ROBOT_SETUP.md` para configurar o Worker, o serviço 24 horas e o volume persistente da sessão.
+
+O deploy do Worker usa o workflow `Deploy Lanchonetes 2 e 3` do repositório principal, que concentra a credencial do Cloudflare sem copiá-la para este repositório.

@@ -5,9 +5,9 @@ const crypto = require('crypto');
 const wppconnect = require('@wppconnect-team/wppconnect');
 
 const PORT = Number(process.env.PORT || 3000);
-const ROBOT_API_BASE = String(process.env.ROBOT_API_BASE || 'https://lanchonete-2.kuadmff2.workers.dev').replace(/\/$/, '');
-const ROBOT_WEBHOOK_TOKEN = String(process.env.ROBOT_WEBHOOK_TOKEN || '');
-const SESSION_NAME = String(process.env.WPP_SESSION || 'lanchonete-2-whatsapp');
+const ROBOT_API_BASE = String(process.env.ROBOT_API_BASE || process.env.LANCHONETE_ROBOT_API_BASE || 'https://lanchonete-2.kuadmff2.workers.dev').replace(/\/$/, '');
+const ROBOT_WEBHOOK_TOKEN = String(process.env.ROBOT_WEBHOOK_TOKEN || process.env.LANCHONETE_ROBOT_WEBHOOK_TOKEN || '');
+const SESSION_NAME = String(process.env.WPP_SESSION || process.env.LANCHONETE_WPP_SESSION || 'lanchonete-2-whatsapp');
 const TOKEN_DIR = String(process.env.WPP_TOKEN_PATH || path.join(process.cwd(), 'tokens'));
 const QR_ACCESS_TOKEN = String(process.env.QR_ACCESS_TOKEN || crypto.randomBytes(20).toString('hex'));
 const ROBOT_CONTROL_TOKEN = String(process.env.ROBOT_CONTROL_TOKEN || QR_ACCESS_TOKEN);
@@ -21,6 +21,11 @@ let lastError = '';
 let reconnectTimer = null;
 let starting = false;
 let connectedAt = null;
+let stateSyncRunning = false;
+let stateSyncPending = false;
+let commandPollRunning = false;
+let lastCommandId = '';
+let lastBridgeWarningAt = 0;
 
 fs.mkdirSync(TOKEN_DIR, { recursive: true });
 
@@ -110,6 +115,69 @@ function statusPayload(includeQr = false) {
   };
 }
 
+function robotHeaders() {
+  const headers = { 'content-type': 'application/json' };
+  if (ROBOT_WEBHOOK_TOKEN) headers['x-robot-token'] = ROBOT_WEBHOOK_TOKEN;
+  return headers;
+}
+
+function logBridgeWarning(message) {
+  if (Date.now() - lastBridgeWarningAt < 60000) return;
+  lastBridgeWarningAt = Date.now();
+  console.warn(`⚠️ ${message}`);
+}
+
+async function syncConnectionState() {
+  if (!ROBOT_WEBHOOK_TOKEN) return;
+  if (stateSyncRunning) {
+    stateSyncPending = true;
+    return;
+  }
+
+  stateSyncRunning = true;
+  try {
+    const response = await fetch(`${ROBOT_API_BASE}/api/robot/connection/sync`, {
+      method: 'POST',
+      headers: robotHeaders(),
+      body: JSON.stringify(statusPayload(true)),
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  } catch (error) {
+    logBridgeWarning(`Não foi possível atualizar o QR no painel (${error.message}).`);
+  } finally {
+    stateSyncRunning = false;
+    if (stateSyncPending) {
+      stateSyncPending = false;
+      setImmediate(syncConnectionState);
+    }
+  }
+}
+
+function queueConnectionSync() {
+  setImmediate(syncConnectionState);
+}
+
+async function pollConnectionCommand() {
+  if (!ROBOT_WEBHOOK_TOKEN || commandPollRunning) return;
+  commandPollRunning = true;
+  try {
+    const url = `${ROBOT_API_BASE}/api/robot/connection/command?after=${encodeURIComponent(lastCommandId)}`;
+    const response = await fetch(url, { headers: robotHeaders() });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const data = await response.json().catch(() => ({}));
+    const command = data?.command;
+    if (!command?.id || command.id === lastCommandId) return;
+    lastCommandId = String(command.id);
+    if (command.action === 'reset' || command.action === 'restart') {
+      await restartWhatsApp({ clearSession: command.action === 'reset' });
+    }
+  } catch (error) {
+    logBridgeWarning(`Não foi possível consultar comandos do painel (${error.message}).`);
+  } finally {
+    commandPollRunning = false;
+  }
+}
+
 function sendJson(res, data, status = 200) {
   res.writeHead(status, { 'content-type': 'application/json; charset=utf-8' });
   res.end(JSON.stringify(data));
@@ -158,6 +226,7 @@ async function stopWhatsApp({ logout = false, clearSession = false } = {}) {
   connectedAt = null;
   qrImage = null;
   authState = clearSession ? 'resetting' : 'restarting';
+  queueConnectionSync();
 
   if (client) {
     if (logout && typeof client.logout === 'function') {
@@ -259,7 +328,13 @@ const server = http.createServer(async (req, res) => {
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`🌐 Health: ${publicDomain()}/health`);
   console.log(`🔐 QR seguro: ${publicDomain()}/qr/${QR_ACCESS_TOKEN}`);
+  queueConnectionSync();
 });
+
+const connectionSyncTimer = setInterval(syncConnectionState, 5000);
+const commandPollTimer = setInterval(pollConnectionCommand, 3000);
+connectionSyncTimer.unref();
+commandPollTimer.unref();
 
 function removeChromiumLocks() {
   const names = new Set(['SingletonLock', 'SingletonSocket', 'SingletonCookie']);
@@ -310,6 +385,7 @@ async function startWhatsApp() {
         connected = false;
         connectedAt = null;
         authState = 'qr';
+        queueConnectionSync();
         console.log(`📲 QR atualizado. Tentativa ${attempts}.`);
       },
       statusFind: (statusSession) => {
@@ -318,6 +394,7 @@ async function startWhatsApp() {
           connected = true;
           qrImage = null;
         }
+        queueConnectionSync();
         console.log(`🔐 Estado WhatsApp: ${authState}`);
       },
       headless: true,
@@ -341,6 +418,7 @@ async function startWhatsApp() {
     connectedAt = new Date().toISOString();
     qrImage = null;
     authState = 'inChat';
+    queueConnectionSync();
     console.log('✅ WhatsApp conectado. Robô ativo.');
 
     client.onMessage(handleMessage);
@@ -352,12 +430,14 @@ async function startWhatsApp() {
         connected = false;
         connectedAt = null;
       }
+      queueConnectionSync();
     });
   } catch (error) {
     lastError = String(error?.message || error);
     connected = false;
     connectedAt = null;
     authState = 'error';
+    queueConnectionSync();
     console.error('❌ Erro ao iniciar WhatsApp:', lastError);
     scheduleReconnect();
   } finally {

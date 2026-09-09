@@ -15,8 +15,8 @@ function authorizeAdminAppRequest(request, env) {
   return new Request(request, { headers });
 }
 
-async function prepareAdminHtmlForApp(request, response) {
-  if (!isAdminAppRequest(request) || !response.ok) return response;
+async function prepareAdminHtmlForApp(request, response, env) {
+  if (!isAdminAppRequest(request) || !env.ADMIN_PASSWORD || !response.ok) return response;
 
   const url = new URL(request.url);
   if (url.pathname !== "/admin" && url.pathname !== "/admin.html") return response;
@@ -55,6 +55,6 @@ export default {
   async fetch(request, env, ctx) {
     const authorizedRequest = authorizeAdminAppRequest(request, env);
     const response = await worker.fetch(authorizedRequest, env, ctx);
-    return prepareAdminHtmlForApp(request, response);
+    return prepareAdminHtmlForApp(request, response, env);
   }
 };

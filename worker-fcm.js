@@ -17,6 +17,8 @@ const DEFAULT_ROBOT_SETTINGS = {
 
 const ROBOT_SESSION_TTL = 60 * 60 * 3;
 const MAX_ITEM_QTY = 30;
+const ROBOT_CONNECTION_STATE_KEY = "robot-connection-state";
+const ROBOT_CONNECTION_COMMAND_KEY = "robot-connection-command";
 
 function json(data, status = 200, extraHeaders = {}) {
   return new Response(JSON.stringify(data), {
@@ -54,6 +56,24 @@ function safeDeliveryFee(value) {
   const amount = Number(value);
   if (!Number.isFinite(amount)) return 0;
   return Number(Math.max(0, Math.min(amount, 1000)).toFixed(2));
+}
+
+async function sha256Hex(value) {
+  const bytes = new TextEncoder().encode(String(value || ""));
+  const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", bytes));
+  return [...digest].map((byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+function robotTokenConfigured(env) {
+  return Boolean(env.ROBOT_WEBHOOK_TOKEN || env.ROBOT_WEBHOOK_TOKEN_SHA256);
+}
+
+async function robotTokenAuthorized(request, env) {
+  const supplied = request.headers.get("x-robot-token") || "";
+  if (!supplied) return false;
+  if (env.ROBOT_WEBHOOK_TOKEN && supplied === String(env.ROBOT_WEBHOOK_TOKEN)) return true;
+  const expectedHash = String(env.ROBOT_WEBHOOK_TOKEN_SHA256 || "").trim().toLowerCase();
+  return /^[0-9a-f]{64}$/.test(expectedHash) && await sha256Hex(supplied) === expectedHash;
 }
 
 function currentManausTime() {
@@ -233,7 +253,7 @@ function adminAuthHeaders(authResponse) {
   return setCookie ? { "set-cookie": setCookie } : {};
 }
 
-async function handleRobotConnection(request, env, ctx) {
+async function handleRemoteRobotConnection(request, env, ctx) {
   const authResponse = await authorizeWithBaseWorker(request, env, ctx);
   if (!authResponse.ok) return authResponse;
 
@@ -326,6 +346,112 @@ async function handleRobotConnection(request, env, ctx) {
   }
 }
 
+function cleanConnectionState(data) {
+  const qrImage = typeof data?.qrImage === "string"
+    && data.qrImage.startsWith("data:image/")
+    && data.qrImage.length <= 600000
+    ? data.qrImage
+    : "";
+  return {
+    configured: true,
+    connected: Boolean(data?.connected),
+    qrReady: Boolean(qrImage),
+    qrImage,
+    authState: safeText(data?.authState, 80) || "starting",
+    connectedAt: safeText(data?.connectedAt, 80) || null,
+    lastError: safeText(data?.lastError, 400) || null,
+    updatedAt: safeText(data?.updatedAt, 80) || new Date().toISOString()
+  };
+}
+
+async function handleRobotConnection(request, env, ctx) {
+  if (!robotTokenConfigured(env)) return handleRemoteRobotConnection(request, env, ctx);
+
+  const authResponse = await authorizeWithBaseWorker(request, env, ctx);
+  if (!authResponse.ok) return authResponse;
+  const responseHeaders = adminAuthHeaders(authResponse);
+  if (!env.PROMOTIONS) return json({ error: "Armazenamento ainda não configurado no Cloudflare." }, 500, responseHeaders);
+
+  if (request.method === "GET") {
+    const raw = await env.PROMOTIONS.get(ROBOT_CONNECTION_STATE_KEY);
+    if (!raw) {
+      return json({
+        configured: true,
+        connected: false,
+        qrReady: false,
+        authState: "starting",
+        message: "O serviço 24 horas está iniciando e enviará o QR Code para esta tela."
+      }, 200, responseHeaders);
+    }
+
+    try {
+      const state = cleanConnectionState(JSON.parse(raw));
+      const age = Date.now() - Date.parse(state.updatedAt || "");
+      if (Number.isFinite(age) && age > 60000) {
+        state.connected = false;
+        state.qrReady = false;
+        state.qrImage = "";
+        state.authState = "unreachable";
+        state.lastError = "O serviço do WhatsApp parou de atualizar o estado. Verifique o Railway.";
+      }
+      return json(state, 200, responseHeaders);
+    } catch {
+      return json({ configured: true, connected: false, qrReady: false, authState: "starting" }, 200, responseHeaders);
+    }
+  }
+
+  if (request.method !== "POST") return json({ error: "Método não permitido." }, 405, responseHeaders);
+
+  let body;
+  try { body = await request.json(); }
+  catch { return json({ error: "Dados inválidos." }, 400, responseHeaders); }
+
+  const action = body?.action === "reset" ? "reset" : body?.action === "restart" ? "restart" : "";
+  if (!action) return json({ error: "Ação inválida." }, 400, responseHeaders);
+
+  const command = { id: crypto.randomUUID(), action, createdAt: new Date().toISOString() };
+  await env.PROMOTIONS.put(ROBOT_CONNECTION_COMMAND_KEY, JSON.stringify(command), { expirationTtl: 600 });
+  return json({
+    configured: true,
+    ok: true,
+    accepted: true,
+    action,
+    message: action === "reset"
+      ? "Conexão anterior será removida. Preparando um novo QR Code."
+      : "Reconexão do robô solicitada."
+  }, 202, responseHeaders);
+}
+
+async function handleRobotConnectionSync(request, env) {
+  if (request.method !== "POST") return json({ error: "Método não permitido." }, 405);
+  if (!robotTokenConfigured(env) || !await robotTokenAuthorized(request, env)) return json({ error: "Token do robô inválido." }, 401);
+  if (!env.PROMOTIONS) return json({ error: "Armazenamento do robô não configurado." }, 503);
+
+  let body;
+  try { body = await request.json(); }
+  catch { return json({ error: "Dados inválidos." }, 400); }
+
+  const state = cleanConnectionState({ ...body, updatedAt: new Date().toISOString() });
+  await env.PROMOTIONS.put(ROBOT_CONNECTION_STATE_KEY, JSON.stringify(state), { expirationTtl: 300 });
+  return json({ ok: true });
+}
+
+async function handleRobotConnectionCommand(request, env) {
+  if (request.method !== "GET") return json({ error: "Método não permitido." }, 405);
+  if (!robotTokenConfigured(env) || !await robotTokenAuthorized(request, env)) return json({ error: "Token do robô inválido." }, 401);
+  if (!env.PROMOTIONS) return json({ error: "Armazenamento do robô não configurado." }, 503);
+
+  const raw = await env.PROMOTIONS.get(ROBOT_CONNECTION_COMMAND_KEY);
+  if (!raw) return json({ command: null });
+  try {
+    const command = JSON.parse(raw);
+    const after = safeText(new URL(request.url).searchParams.get("after"), 80);
+    return json({ command: command?.id && command.id !== after ? command : null });
+  } catch {
+    return json({ command: null });
+  }
+}
+
 async function handleRobotSettings(request, env, ctx) {
   if (request.method === "GET") {
     const settings = await loadRobotSettings(env);
@@ -385,7 +511,7 @@ async function createRobotOrder(request, env, ctx, session, phone, key, delivery
     method: "POST",
     headers: {
       "content-type": "application/json",
-      ...(env.ROBOT_WEBHOOK_TOKEN ? { "x-robot-token": env.ROBOT_WEBHOOK_TOKEN } : {})
+      ...(request.headers.get("x-robot-token") ? { "x-robot-token": request.headers.get("x-robot-token") } : {})
     },
     body: JSON.stringify(payload)
   });
@@ -410,9 +536,8 @@ async function handleRobotConversation(request, env, ctx) {
   if (request.method !== "POST") return json({ error: "Método não permitido." }, 405);
   if (!env.PROMOTIONS) return json({ error: "Armazenamento do robô não configurado." }, 503);
 
-  if (env.ROBOT_WEBHOOK_TOKEN) {
-    const token = request.headers.get("x-robot-token") || "";
-    if (token !== env.ROBOT_WEBHOOK_TOKEN) return json({ error: "Token do robô inválido." }, 401);
+  if (robotTokenConfigured(env) && !await robotTokenAuthorized(request, env)) {
+    return json({ error: "Token do robô inválido." }, 401);
   }
 
   let body;
@@ -640,6 +765,14 @@ export default {
 
     if (url.pathname === "/api/robot/chat") {
       return handleRobotConversation(request, env, ctx);
+    }
+
+    if (url.pathname === "/api/robot/connection/sync") {
+      return handleRobotConnectionSync(request, env);
+    }
+
+    if (url.pathname === "/api/robot/connection/command") {
+      return handleRobotConnectionCommand(request, env);
     }
 
     if (url.pathname === "/api/robot/connection") {

@@ -78,15 +78,14 @@ Implante a pasta `whatsapp-robot` como um serviço Node/Docker separado. No Rail
 Variáveis do serviço do WhatsApp:
 
 - `ROBOT_API_BASE`: endereço público do Worker desta lanchonete;
-- `ROBOT_WEBHOOK_TOKEN`: mesmo segredo configurado no Worker;
-- `ROBOT_CONTROL_TOKEN`: segredo forte usado exclusivamente pelo painel para consultar o QR e trocar a sessão;
+- `ROBOT_WEBHOOK_TOKEN`: segredo forte e exclusivo usado para mensagens, estado do QR e comandos;
 - `WPP_SESSION`: nome exclusivo da sessão desta lanchonete;
 - `WPP_TOKEN_PATH`: `/app/tokens` quando o volume persistente estiver montado.
 
 Variáveis do Worker/Cloudflare:
 
-- `ROBOT_SERVICE_URL`: endereço HTTPS público do serviço 24 horas;
-- `ROBOT_CONTROL_TOKEN`: exatamente o mesmo segredo do serviço do WhatsApp;
-- `ROBOT_WEBHOOK_TOKEN`: exatamente o mesmo segredo usado pelo serviço ao enviar mensagens ao motor de pedidos.
+- `ROBOT_WEBHOOK_TOKEN`: o mesmo segredo do serviço, configurado como secret; ou
+- `ROBOT_WEBHOOK_TOKEN_SHA256`: o SHA-256 do segredo, que pode ficar nas variáveis do Worker sem revelar o valor original;
+- `ADMIN_PASSWORD` ou `ADMIN_PASSWORD_SHA256`: autenticação do painel.
 
-O navegador e o APK nunca recebem `ROBOT_CONTROL_TOKEN`. O Worker autentica o administrador e consulta o serviço 24 horas em nome do painel. Cada lanchonete deve usar uma sessão, um volume e um conjunto de segredos próprios para não misturar contas ou pedidos.
+O serviço envia o estado e o QR ao Worker e consulta periodicamente os comandos de reinício. O navegador e o APK nunca recebem `ROBOT_WEBHOOK_TOKEN`: eles leem o QR somente depois da autenticação administrativa. Cada lanchonete deve usar uma sessão, um volume e um segredo próprios para não misturar contas ou pedidos.
