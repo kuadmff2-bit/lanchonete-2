@@ -21,7 +21,7 @@ COPY package.json package-lock.json ./
 RUN npm ci --omit=dev \
     && npm cache clean --force
 
-COPY index.js multi-runner.js ./
+COPY index.js multi-runner.js pairing-preload.js ./
 RUN npm run check \
     && mkdir -p /app/tokens
 
