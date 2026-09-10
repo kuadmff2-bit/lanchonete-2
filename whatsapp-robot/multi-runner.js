@@ -10,6 +10,12 @@ const startupTimers = [];
 const pendingMessages = new Map();
 let shuttingDown = false;
 
+const ADMIN_CONTROL_HASHES = new Map([
+  ['lanchonete-whatsapp', 'c87d431851bb55cddb601e9bd8bd7eadd7bc0f4906e41318e17d63379a23b483'],
+  ['lanchonete-2-whatsapp', '3c1ff0e77623f56bdf0eda50d37b7c3568ba4c0a17d87763c50d46fe8dcfae1d'],
+  ['lanchonete-3-whatsapp', 'bfcfc09b0c6942fcc6b279a37c51567b95ade470d4f3f218899c225227435c3b'],
+]);
+
 function normalizeInstance(item, index) {
   const name = String(item?.name || `instancia-${index + 1}`);
   const rawSlug = String(item?.slug || item?.WPP_SESSION || item?.LANCHONETE_WPP_SESSION || name);
@@ -20,6 +26,12 @@ function normalizeInstance(item, index) {
     name,
     slug,
     ROBOT_CONTROL_TOKEN: String(item?.ROBOT_CONTROL_TOKEN || process.env.ROBOT_CONTROL_TOKEN || ''),
+    ROBOT_CONTROL_TOKEN_SHA256: String(
+      item?.ROBOT_CONTROL_TOKEN_SHA256
+      || process.env.ROBOT_CONTROL_TOKEN_SHA256
+      || ADMIN_CONTROL_HASHES.get(slug)
+      || ''
+    ).trim().toLowerCase(),
   };
 }
 
@@ -138,17 +150,28 @@ function sendJson(res, data, status = 200) {
   res.end(JSON.stringify(data));
 }
 
+function sha256Hex(value) {
+  return crypto.createHash('sha256').update(String(value || ''), 'utf8').digest('hex');
+}
+
+function safeEqualText(a, b) {
+  const aBuffer = Buffer.from(String(a || ''));
+  const bBuffer = Buffer.from(String(b || ''));
+  return aBuffer.length === bBuffer.length && crypto.timingSafeEqual(aBuffer, bBuffer);
+}
+
 function controlAuthorized(req, instance) {
   const authorization = String(req.headers.authorization || '');
   const supplied = authorization.toLowerCase().startsWith('bearer ')
     ? authorization.slice(7).trim()
     : '';
+  if (!supplied) return false;
+
   const expected = String(instance.ROBOT_CONTROL_TOKEN || '');
-  if (!supplied || !expected) return false;
-  const suppliedBuffer = Buffer.from(supplied);
-  const expectedBuffer = Buffer.from(expected);
-  return suppliedBuffer.length === expectedBuffer.length
-    && crypto.timingSafeEqual(suppliedBuffer, expectedBuffer);
+  if (expected && safeEqualText(supplied, expected)) return true;
+
+  const expectedHash = String(instance.ROBOT_CONTROL_TOKEN_SHA256 || '').trim().toLowerCase();
+  return /^[0-9a-f]{64}$/.test(expectedHash) && safeEqualText(sha256Hex(supplied), expectedHash);
 }
 
 function readRequestJson(req, maxBytes = 262144) {
