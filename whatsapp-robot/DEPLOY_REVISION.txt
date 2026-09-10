@@ -1,1 +1,1 @@
-2026-09-10 pairing-preload fix final 3
+2026-09-10 force redeploy after disabling watch filters
