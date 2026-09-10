@@ -1,5 +1,7 @@
 name: Gravar APK final da Lanchonete 2
 
+# Sincronização final do APK 1.3 compilado com a chave automática correta.
+
 on:
   workflow_dispatch:
   push:
