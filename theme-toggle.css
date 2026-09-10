@@ -176,3 +176,8 @@
     clip: auto;
   }
 }
+
+:root[data-brand-style="bold"] body.admin-view .admin-head p {
+  color: var(--brand-on-primary) !important;
+  opacity: 0.88;
+}
