@@ -7,7 +7,7 @@
   "scripts": {
     "start": "node multi-runner.js",
     "start:single": "node index.js",
-    "check": "node --check index.js && node --check multi-runner.js"
+    "check": "node --check index.js && node --check multi-runner.js && node --check pairing-preload.js"
   },
   "engines": {
     "node": ">=20.0.0"
