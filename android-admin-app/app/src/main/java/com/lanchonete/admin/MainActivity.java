@@ -22,9 +22,9 @@ import android.widget.FrameLayout;
 import android.widget.Toast;
 
 public class MainActivity extends Activity {
-    private static final String ADMIN_URL = "https://lanchonete-2.kuadmff2.workers.dev/admin?v=20260909-2";
+    private static final String ADMIN_URL = "https://lanchonete-2.kuadmff2.workers.dev/admin?v=20260910-1";
     private static final String ALLOWED_HOST = "lanchonete-2.kuadmff2.workers.dev";
-    private static final String APP_USER_AGENT = "LanchoneteAdminApp/2.2-l2";
+    private static final String APP_USER_AGENT = "LanchoneteAdminApp/1.3-l2";
     private static final int FILE_CHOOSER_REQUEST = 4102;
     private static final long MIN_SPLASH_MS = 700L;
     private static final int READY_MAX_ATTEMPTS = 180;
@@ -213,9 +213,18 @@ public class MainActivity extends Activity {
             if (attempt >= READY_MAX_ATTEMPTS) {
                 Toast.makeText(
                         MainActivity.this,
-                        "O painel está demorando para carregar. Verifique sua conexão.",
+                        "Não foi possível atualizar o painel agora. Verifique sua conexão e toque em Atualizar.",
                         Toast.LENGTH_LONG
                 ).show();
+                String showError = "(()=>{" +
+                        "const login=document.querySelector('#loginPanel');" +
+                        "const app=document.querySelector('#adminApp');" +
+                        "const status=document.querySelector('#dashboardStatus');" +
+                        "if(login)login.hidden=true;if(app)app.hidden=false;" +
+                        "if(status){status.textContent='Não foi possível atualizar o painel. Verifique a internet e toque em Atualizar.';status.className='status error';}" +
+                        "document.documentElement.dataset.apkReady='1';" +
+                        "})();";
+                webView.evaluateJavascript(showError, ignored -> revealAdmin());
                 return;
             }
 
@@ -291,8 +300,6 @@ public class MainActivity extends Activity {
                 "let data;if(typeof api==='function'){data=await api('/api/orders/'+encodeURIComponent(id),{method:'PATCH',headers:{'content-type':'application/json'},body:JSON.stringify({status})});}" +
                 "else{const r=await fetch('/api/orders/'+encodeURIComponent(id),{method:'PATCH',headers:{'content-type':'application/json'},credentials:'include',body:JSON.stringify({status})});data=await r.json();if(!r.ok)throw new Error(data.error||'Erro');}" +
                 "if(typeof renderDashboard==='function')renderDashboard(data);setTimeout(upgrade,50);" +
-                "const o=data&&data.order;let p=String(o&&o.customerPhone||'').replace(/\\D/g,'');if(p&&p.length<=11)p='55'+p;" +
-                "if(p&&/^55\\d{10,11}$/.test(p)){let m='';const n=(o.customerName||'Cliente');if(status==='confirmado')m='Olá, '+n+'! Seu pedido '+id+' foi confirmado ✅.';if(status==='saiu_entrega')m=(o.deliveryType==='Retirada'?'Olá, '+n+'! Seu pedido '+id+' está pronto para retirada ✅.':'Olá, '+n+'! Seu pedido '+id+' saiu para entrega 🛵.');if(status==='cancelado')m='Olá, '+n+'. Seu pedido '+id+' foi cancelado.';if(m)location.href='https://wa.me/'+p+'?text='+encodeURIComponent(m);}" +
                 "}catch(err){group.forEach(x=>x.disabled=false);if(typeof setStatus==='function')setStatus('#dashboardStatus',err.message||'Não foi possível mudar o status.','error');}" +
                 "});" +
                 "new MutationObserver(upgrade).observe(document.documentElement,{childList:true,subtree:true});upgrade();" +
@@ -310,10 +317,20 @@ public class MainActivity extends Activity {
         }
     }
 
-    private static final class AdminBridge {
+    private final class AdminBridge {
         @JavascriptInterface
         public String getToken() {
             return BuildConfig.ADMIN_APP_TOKEN;
+        }
+
+        @JavascriptInterface
+        public void notifyNewOrder(String orderId, String customerName, String total) {
+            runOnUiThread(() -> AdminFirebaseMessagingService.showOrderNotification(
+                    MainActivity.this,
+                    "Novo pedido!",
+                    "Confirme o pedido de " + customerName + " · " + total,
+                    orderId
+            ));
         }
     }
 

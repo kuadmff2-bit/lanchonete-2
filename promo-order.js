@@ -92,57 +92,8 @@
       items: regularItems
     };
 
-    const response = await fetch("/api/orders", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(payload),
-      cache: "no-store"
-    });
-    const data = await response.json().catch(() => ({}));
-    if (!response.ok || !data?.order) throw new Error(data.error || "Não foi possível registrar o pedido. Tente novamente.");
-    return data.order;
-  };
-
-  buildWhatsAppMessage = function (formData, registeredOrder) {
-    const total = Number(registeredOrder?.total ?? cartDetails().total);
-    const deliveryType = formData.get("deliveryType");
-    const payment = formData.get("payment");
-    const customerPhone = String(formData.get("customerPhone") || "").trim();
-    const lines = [
-      "*NOVO PEDIDO - LANCHONETE 2*",
-      `*Pedido:* ${registeredOrder?.id || ""}`,
-      "",
-      `*Cliente:* ${formData.get("customerName").trim()}`,
-      `*WhatsApp:* ${customerPhone}`,
-      `*Recebimento:* ${deliveryType}`
-    ];
-
-    if (deliveryType === "Entrega") {
-      lines.push(`*Endereço:* ${formData.get("address").trim()}`);
-      const reference = formData.get("reference").trim();
-      if (reference) lines.push(`*Referência:* ${reference}`);
-    }
-
-    lines.push("", "*PEDIDO*");
-    const items = Array.isArray(registeredOrder?.items) && registeredOrder.items.length
-      ? registeredOrder.items
-      : orderItems().map((item) => ({ ...item, unitPrice: item.price, subtotal: Number(item.price) * Number(item.qty || 1) }));
-
-    items.forEach((item) => {
-      const qty = Number(item.qty || 1);
-      const subtotal = Number(item.subtotal ?? (Number(item.unitPrice || item.price || 0) * qty));
-      lines.push(`${qty}x ${item.name} - ${money(subtotal)}`);
-    });
-
-    lines.push("", `*Total:* ${money(total)}`, `*Pagamento:* ${payment}`);
-    if (payment === "Dinheiro") {
-      const change = formData.get("changeFor").trim();
-      lines.push(`*Troco para:* ${change ? `R$ ${change}` : "não informado"}`);
-    }
-    const note = formData.get("orderNote").trim();
-    if (note) lines.push("", `*Observação:* ${note}`);
-    lines.push("", "Pedido registrado pelo cardápio digital da Lanchonete 2.");
-    return lines.join("\n");
+    const data = await submitOrderPayload(payload);
+    return Object.assign(data.order, { _messaging: data.messaging || null });
   };
 
   loadPromotion = async function () {

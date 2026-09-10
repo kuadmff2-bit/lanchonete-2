@@ -71,7 +71,7 @@
   })();
 })();
 
-// Carrega o módulo do robô sem interferir nas funções já existentes do painel.
+// Carrega a conexão e a configuração transacional do WhatsApp.
 (() => {
   if (!document.querySelector('script[data-admin-robot]')) {
     const script = document.createElement('script');

@@ -44,6 +44,11 @@ body:not(.admin-view) .sheet-head small {
   color: var(--brand-primary);
 }
 
+body:not(.admin-view) .hero h1 {
+  color: #ffffff;
+  text-shadow: 0 2px 18px rgba(0, 0, 0, 0.34);
+}
+
 body:not(.admin-view) .product-card,
 body:not(.admin-view) .promo-card,
 body:not(.admin-view) .sheet,
@@ -201,6 +206,27 @@ body.admin-view .order-action-button {
   background: var(--card2) !important;
   border-color: var(--line) !important;
   color: var(--text) !important;
+}
+
+html[data-brand-style="bold"] body:not(.admin-view) .hero h1 {
+  color: var(--blue-deep);
+  text-shadow: none;
+}
+
+html[data-brand-style="bold"] body.admin-view .admin-head {
+  background: var(--brand-primary);
+  color: var(--brand-on-primary);
+}
+
+html[data-brand-style="bold"] body.admin-view .admin-head h1,
+html[data-brand-style="bold"] body.admin-view .admin-head p,
+html[data-brand-style="bold"] body.admin-view .admin-head .back-link,
+html[data-brand-style="bold"] body.admin-view .admin-head .theme-toggle {
+  color: var(--brand-on-primary) !important;
+}
+
+html[data-brand-style="bold"] body.admin-view .admin-head .theme-toggle span {
+  color: var(--brand-accent);
 }
 
 

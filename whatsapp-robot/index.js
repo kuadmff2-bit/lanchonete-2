@@ -38,74 +38,134 @@ function publicDomain() {
   return process.env.RAILWAY_PUBLIC_DOMAIN ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}` : `http://localhost:${PORT}`;
 }
 
-function safePhone(msg) {
-  const candidates = [
-    msg?.sender?.id?.user,
-    msg?.sender?.id?._serialized,
-    msg?.from,
-    msg?.chatId,
-  ].filter(Boolean);
+function normalizeOutgoingPhone(value) {
+  let digits = String(value || '').replace(/\D/g, '');
+  if (digits.length === 10 || digits.length === 11) digits = `55${digits}`;
+  return /^55\d{10,11}$/.test(digits) ? digits : '';
+}
 
-  for (const candidate of candidates) {
-    let digits = String(candidate).split('@')[0].replace(/\D/g, '');
-    if (digits.length === 10 || digits.length === 11) digits = `55${digits}`;
-    if (/^55\d{10,11}$/.test(digits)) return digits;
+function cleanMessageText(value, fallback = '') {
+  return String(value ?? fallback).replace(/[\u0000-\u001f\u007f]/g, ' ').trim();
+}
+
+function money(value) {
+  return Number(value || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+}
+
+function orderLines(order) {
+  const items = Array.isArray(order?.items) ? order.items : [];
+  return items.map((item) => {
+    const qty = Math.max(1, Number(item?.qty || 1));
+    const subtotal = Number(item?.subtotal ?? (Number(item?.unitPrice || 0) * qty));
+    return `${qty}x ${cleanMessageText(item?.name, 'Item')} — ${money(subtotal)}`;
+  });
+}
+
+function businessOrderMessage(order) {
+  const lines = [
+    '🍔 *NOVO PEDIDO*',
+    `*Pedido:* ${cleanMessageText(order?.id)}`,
+    '',
+    `*Cliente:* ${cleanMessageText(order?.customerName, 'Cliente')}`,
+    `*WhatsApp:* ${cleanMessageText(order?.customerPhone)}`,
+    `*Recebimento:* ${cleanMessageText(order?.deliveryType, 'Não informado')}`,
+  ];
+  if (order?.deliveryType === 'Entrega') {
+    lines.push(`*Endereço:* ${cleanMessageText(order?.address, 'Não informado')}`);
+    if (order?.reference) lines.push(`*Referência:* ${cleanMessageText(order.reference)}`);
+  }
+  lines.push('', '*ITENS*', ...orderLines(order));
+  lines.push('', `*Total:* ${money(order?.total)}`, `*Pagamento:* ${cleanMessageText(order?.payment, 'Não informado')}`);
+  if (order?.changeFor) lines.push(`*Troco para:* ${cleanMessageText(order.changeFor)}`);
+  if (order?.note) lines.push('', `*Observação:* ${cleanMessageText(order.note)}`);
+  lines.push('', 'O pedido também está disponível no APK administrativo.');
+  return lines.join('\n');
+}
+
+function customerReceiptMessage(order) {
+  const lines = [
+    '✅ *Pedido realizado com sucesso!*',
+    '',
+    `Olá, ${cleanMessageText(order?.customerName, 'cliente')}! Recebemos o pedido *${cleanMessageText(order?.id)}*.`,
+    '',
+    ...orderLines(order),
+    '',
+    `*Total:* ${money(order?.total)}`,
+    `*Pagamento:* ${cleanMessageText(order?.payment, 'Não informado')}`,
+    order?.deliveryType === 'Retirada'
+      ? '*Recebimento:* retirada na lanchonete'
+      : `*Entrega:* ${cleanMessageText(order?.address, 'endereço informado')}`,
+    '',
+    'Você receberá as atualizações do pedido por aqui.'
+  ];
+  return lines.join('\n');
+}
+
+function customerStatusMessage(order, status) {
+  const name = cleanMessageText(order?.customerName, 'cliente');
+  const orderId = cleanMessageText(order?.id);
+  if (status === 'confirmado') {
+    return `✅ Olá, ${name}! Seu pedido *${orderId}* foi confirmado e já está sendo preparado.`;
+  }
+  if (status === 'saiu_entrega') {
+    return order?.deliveryType === 'Retirada'
+      ? `✅ Olá, ${name}! Seu pedido *${orderId}* está pronto para retirada.`
+      : `🛵 Olá, ${name}! Seu pedido *${orderId}* saiu para entrega.`;
+  }
+  if (status === 'cancelado') {
+    return `❌ Olá, ${name}. Seu pedido *${orderId}* foi cancelado pela lanchonete.`;
   }
   return '';
 }
 
-function shouldIgnore(msg) {
-  const from = String(msg?.from || '');
-  if (!from) return true;
-  if (msg?.fromMe) return true;
-  if (msg?.isGroupMsg || from.endsWith('@g.us')) return true;
-  if (from === 'status@broadcast' || from.endsWith('@broadcast')) return true;
-  return false;
+async function sendTextToPhone(phone, message) {
+  const normalized = normalizeOutgoingPhone(phone);
+  if (!normalized) throw new Error('Número de WhatsApp inválido.');
+  if (!connected || !clientRef) throw new Error('WhatsApp desconectado.');
+  await clientRef.sendText(`${normalized}@c.us`, message);
+  return true;
 }
 
-async function callRobotApi(msg) {
-  const body = String(msg?.body || '').trim();
-  if (!body) return null;
+async function sendOrderMessages(payload) {
+  const order = payload?.order;
+  if (!order?.id) throw new Error('Pedido inválido.');
+  const businessPhone = normalizeOutgoingPhone(payload?.businessPhone);
+  const customerPhone = normalizeOutgoingPhone(order?.customerPhone);
+  if (!businessPhone || !customerPhone) throw new Error('Número da lanchonete ou do cliente inválido.');
 
-  const headers = { 'content-type': 'application/json' };
-  if (ROBOT_WEBHOOK_TOKEN) headers['x-robot-token'] = ROBOT_WEBHOOK_TOKEN;
-
-  const response = await fetch(`${ROBOT_API_BASE}/api/robot/chat`, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify({
-      contactId: String(msg.from || safePhone(msg)),
-      phone: safePhone(msg),
-      message: body,
-    }),
-  });
-
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    throw new Error(data?.error || `Robot API HTTP ${response.status}`);
-  }
-  return data;
+  const [business, customer] = await Promise.allSettled([
+    sendTextToPhone(businessPhone, businessOrderMessage(order)),
+    sendTextToPhone(customerPhone, customerReceiptMessage(order)),
+  ]);
+  const businessSent = business.status === 'fulfilled';
+  const customerSent = customer.status === 'fulfilled';
+  return {
+    sent: businessSent && customerSent,
+    businessSent,
+    customerSent,
+    error: businessSent && customerSent
+      ? ''
+      : [business, customer]
+          .filter((result) => result.status === 'rejected')
+          .map((result) => String(result.reason?.message || result.reason))
+          .join(' ')
+          .slice(0, 240),
+  };
 }
 
-async function handleMessage(msg) {
-  if (!clientRef || shouldIgnore(msg)) return;
+async function sendStatusMessage(payload) {
+  const order = payload?.order;
+  const status = String(payload?.status || order?.status || '');
+  const message = customerStatusMessage(order, status);
+  if (!order?.id || !message) throw new Error('Status automático inválido.');
+  await sendTextToPhone(order.customerPhone, message);
+  return { sent: true, businessSent: false, customerSent: true };
+}
 
-  try {
-    const result = await callRobotApi(msg);
-    if (!result) return;
-
-    // Quando o robô estiver desligado no painel, não envia a frase técnica ao cliente.
-    if (result.disabled) return;
-
-    const reply = String(result.reply || '').trim();
-    if (reply) {
-      await clientRef.sendText(msg.from, reply);
-      console.log(`🤖 Resposta enviada para ${safePhone(msg) || msg.from}. Estado: ${result.state || 'n/a'}`);
-    }
-  } catch (error) {
-    lastError = String(error?.message || error);
-    console.error('❌ Falha ao processar mensagem:', lastError);
-  }
+async function runTransactionalAction(action, payload) {
+  if (action === 'send-order') return sendOrderMessages(payload);
+  if (action === 'send-status') return sendStatusMessage(payload);
+  throw new Error('Ação de mensagem inválida.');
 }
 
 function statusPayload(includeQr = false) {
@@ -214,6 +274,30 @@ function controlAuthorized(req) {
     && crypto.timingSafeEqual(expectedBuffer, suppliedBuffer);
 }
 
+function readRequestJson(req, maxBytes = 262144) {
+  return new Promise((resolve, reject) => {
+    let size = 0;
+    const chunks = [];
+    req.on('data', (chunk) => {
+      size += chunk.length;
+      if (size > maxBytes) {
+        reject(new Error('Corpo da solicitação muito grande.'));
+        req.destroy();
+        return;
+      }
+      chunks.push(chunk);
+    });
+    req.on('end', () => {
+      try {
+        resolve(JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}'));
+      } catch {
+        reject(new Error('JSON inválido.'));
+      }
+    });
+    req.on('error', reject);
+  });
+}
+
 function commandMarkerPath() {
   const resolvedRoot = path.resolve(TOKEN_DIR);
   const filesystemRoot = path.parse(resolvedRoot).root;
@@ -292,7 +376,7 @@ async function restartWhatsApp({ clearSession = false } = {}) {
 function qrPage() {
   let content;
   if (connected) {
-    content = '<div class="ok">✅ WhatsApp conectado</div><p>O robô já está recebendo mensagens.</p>';
+    content = '<div class="ok">✅ WhatsApp conectado</div><p>Pronto para enviar pedidos e atualizações automáticas. O sistema não responde mensagens recebidas.</p>';
   } else if (qrImage) {
     content = `<div class="title">📲 Escaneie o QR Code</div><img src="${qrImage}" alt="QR Code"><p>WhatsApp → Aparelhos conectados → Conectar um aparelho</p><small>Esta página atualiza sozinha.</small>`;
   } else {
@@ -346,6 +430,26 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  if (url.pathname === '/control/send-order' || url.pathname === '/control/send-status') {
+    if (!controlAuthorized(req)) {
+      sendJson(res, { error: 'Não autorizado.' }, 401);
+      return;
+    }
+    if (req.method !== 'POST') {
+      sendJson(res, { error: 'Método não permitido.' }, 405);
+      return;
+    }
+    try {
+      const payload = await readRequestJson(req);
+      const action = url.pathname.endsWith('send-order') ? 'send-order' : 'send-status';
+      const result = await runTransactionalAction(action, payload);
+      sendJson(res, { ok: true, ...result }, result.sent ? 200 : 502);
+    } catch (error) {
+      sendJson(res, { error: String(error?.message || error).slice(0, 240), sent: false }, 503);
+    }
+    return;
+  }
+
   if (url.pathname === `/qr/${QR_ACCESS_TOKEN}`) {
     res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'Referrer-Policy': 'no-referrer', 'X-Frame-Options': 'DENY' });
     res.end(qrPage());
@@ -354,7 +458,7 @@ const server = http.createServer(async (req, res) => {
 
   if (url.pathname === '/') {
     res.writeHead(200, { 'content-type': 'text/plain; charset=utf-8' });
-    res.end(connected ? 'Lanchonete WhatsApp Robot: conectado' : 'Lanchonete WhatsApp Robot: aguardando conexão');
+    res.end(connected ? 'WhatsApp transacional: conectado' : 'WhatsApp transacional: aguardando conexão');
     return;
   }
 
@@ -535,7 +639,7 @@ async function startWhatsApp() {
     authState = 'ready';
     consecutiveClientWatchFailures = 0;
 
-    client.onMessage(handleMessage);
+    // Não registramos onMessage: esta integração não atende nem responde clientes.
     client.onStateChange((state) => {
       const value = String(state || 'unknown');
       authState = value;
@@ -568,7 +672,27 @@ async function startWhatsApp() {
 
 let supervisorControlRunning = false;
 process.on('message', async (message) => {
-  if (!DIRECT_CONTROL || message?.type !== 'robot-control' || supervisorControlRunning) return;
+  if (!DIRECT_CONTROL) return;
+
+  if (message?.type === 'transactional-message' && message.requestId) {
+    try {
+      const result = await runTransactionalAction(message.action, message.payload || {});
+      if (typeof process.send === 'function') {
+        process.send({ type: 'transactional-result', requestId: message.requestId, result });
+      }
+    } catch (error) {
+      if (typeof process.send === 'function') {
+        process.send({
+          type: 'transactional-result',
+          requestId: message.requestId,
+          error: String(error?.message || error).slice(0, 240)
+        });
+      }
+    }
+    return;
+  }
+
+  if (message?.type !== 'robot-control' || supervisorControlRunning) return;
   const action = message.action === 'reset' ? 'reset' : message.action === 'restart' ? 'restart' : '';
   if (!action) return;
 

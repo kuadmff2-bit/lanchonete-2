@@ -69,7 +69,7 @@
       <div class="robot-admin-header">
         <div>
           <h2>📱 WhatsApp da lanchonete</h2>
-          <p>Este é o número central usado pelo site e pelo robô. Alterando aqui, os botões e pedidos do site passam a usar o novo número automaticamente.</p>
+          <p>Este é o número que recebe automaticamente os pedidos completos feitos pelo cardápio.</p>
         </div>
       </div>
       <div class="robot-grid">
@@ -81,7 +81,7 @@
         <button type="button" class="admin-primary" id="businessWhatsappSave">Salvar número</button>
       </div>
       <p class="status" id="businessWhatsappStatus" aria-live="polite"></p>
-      <div class="robot-note"><strong>Sincronização automática:</strong> o site público e qualquer serviço do robô conectado a <code>/api/business-contact</code> passam a consultar este mesmo número.</div>
+      <div class="robot-note"><strong>Sincronização automática:</strong> o site público e o serviço de mensagens passam a usar este mesmo número.</div>
     `;
 
     host.insertAdjacentElement('afterbegin', card);
@@ -113,7 +113,7 @@
         const result = await saveContact(normalized);
         input.value = result.whatsappDisplay || format(result.whatsappNumber || normalized);
         status.className = 'status ok';
-        status.textContent = 'Número atualizado no site e na configuração central do robô.';
+        status.textContent = 'Número que recebe os pedidos atualizado.';
       } catch (error) {
         status.className = 'status error';
         status.textContent = error.message || 'Não foi possível salvar o número.';

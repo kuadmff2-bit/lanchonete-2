@@ -7,6 +7,7 @@ const PORT = Number(process.env.PORT || 3000);
 const children = new Map();
 const states = new Map();
 const startupTimers = [];
+const pendingMessages = new Map();
 let shuttingDown = false;
 
 function normalizeInstance(item, index) {
@@ -64,6 +65,15 @@ function startInstance(instance) {
   });
   console.log(`🚀 Iniciando ${instance.name}.`);
   child.on('message', (message) => {
+    if (message?.type === 'transactional-result' && message.requestId) {
+      const pending = pendingMessages.get(String(message.requestId));
+      if (!pending) return;
+      pendingMessages.delete(String(message.requestId));
+      clearTimeout(pending.timer);
+      if (message.error) pending.reject(new Error(String(message.error)));
+      else pending.resolve(message.result || { sent: false });
+      return;
+    }
     if (message?.type !== 'robot-state' || !message.state || typeof message.state !== 'object') return;
     states.set(instance.slug, {
       ok: true,
@@ -76,6 +86,12 @@ function startInstance(instance) {
     });
   });
   child.on('exit', (code, signal) => {
+    for (const [requestId, pending] of pendingMessages) {
+      if (pending.instanceName !== instance.name) continue;
+      pendingMessages.delete(requestId);
+      clearTimeout(pending.timer);
+      pending.reject(new Error('A instância do WhatsApp reiniciou durante o envio.'));
+    }
     children.delete(instance.name);
     terminateProcessTree(child, 'SIGKILL');
     states.set(instance.slug, {
@@ -135,9 +151,50 @@ function controlAuthorized(req, instance) {
     && crypto.timingSafeEqual(suppliedBuffer, expectedBuffer);
 }
 
-const server = http.createServer((req, res) => {
+function readRequestJson(req, maxBytes = 262144) {
+  return new Promise((resolve, reject) => {
+    let size = 0;
+    const chunks = [];
+    req.on('data', (chunk) => {
+      size += chunk.length;
+      if (size > maxBytes) {
+        reject(new Error('Corpo da solicitação muito grande.'));
+        req.destroy();
+        return;
+      }
+      chunks.push(chunk);
+    });
+    req.on('end', () => {
+      try { resolve(JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}')); }
+      catch { reject(new Error('JSON inválido.')); }
+    });
+    req.on('error', reject);
+  });
+}
+
+function forwardTransactional(instance, action, payload) {
+  const child = children.get(instance.name);
+  if (!child?.connected) return Promise.reject(new Error('A instância do WhatsApp está reiniciando.'));
+  const requestId = crypto.randomUUID();
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      pendingMessages.delete(requestId);
+      reject(new Error('O WhatsApp não confirmou o envio a tempo.'));
+    }, 18000);
+    pendingMessages.set(requestId, { resolve, reject, timer, instanceName: instance.name });
+    try {
+      child.send({ type: 'transactional-message', requestId, action, payload });
+    } catch (error) {
+      pendingMessages.delete(requestId);
+      clearTimeout(timer);
+      reject(error);
+    }
+  });
+}
+
+const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, 'http://localhost');
-  const controlMatch = url.pathname.match(/^\/instances\/([^/]+)\/control\/(status|restart|reset)$/);
+  const controlMatch = url.pathname.match(/^\/instances\/([^/]+)\/control\/(status|restart|reset|send-order|send-status)$/);
 
   if (controlMatch) {
     let slug = '';
@@ -164,6 +221,21 @@ const server = http.createServer((req, res) => {
         qrReady: false,
         authState: 'starting',
       });
+      return;
+    }
+
+    if (action === 'send-order' || action === 'send-status') {
+      if (req.method !== 'POST') {
+        sendJson(res, { error: 'Método não permitido.' }, 405);
+        return;
+      }
+      try {
+        const payload = await readRequestJson(req);
+        const result = await forwardTransactional(instance, action, payload);
+        sendJson(res, { ok: true, ...result }, result.sent ? 200 : 502);
+      } catch (error) {
+        sendJson(res, { error: String(error?.message || error).slice(0, 240), sent: false }, 503);
+      }
       return;
     }
 

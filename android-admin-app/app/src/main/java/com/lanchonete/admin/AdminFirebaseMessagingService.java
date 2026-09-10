@@ -5,6 +5,7 @@ import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.content.Intent;
+import android.content.Context;
 import android.media.RingtoneManager;
 import android.net.Uri;
 import android.os.Build;
@@ -38,11 +39,11 @@ public class AdminFirebaseMessagingService extends FirebaseMessagingService {
         }
 
         String orderId = message.getData().get("orderId");
-        showNotification(title, body, orderId);
+        showOrderNotification(this, title, body, orderId);
     }
 
     public static void ensureChannel(NotificationManager manager) {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return;
+        if (manager == null || Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return;
 
         NotificationChannel channel = new NotificationChannel(
                 CHANNEL_ID,
@@ -55,18 +56,30 @@ public class AdminFirebaseMessagingService extends FirebaseMessagingService {
         manager.createNotificationChannel(channel);
     }
 
-    private void showNotification(String title, String body, String orderId) {
-        NotificationManager manager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+    public static void showOrderNotification(Context context, String title, String body, String orderId) {
+        if (orderId != null && !orderId.isEmpty()) {
+            String preferenceKey = "notified_" + orderId;
+            long lastNotification = context.getSharedPreferences("push", Context.MODE_PRIVATE)
+                    .getLong(preferenceKey, 0L);
+            if (System.currentTimeMillis() - lastNotification < 60000L) return;
+            context.getSharedPreferences("push", Context.MODE_PRIVATE)
+                    .edit()
+                    .putLong(preferenceKey, System.currentTimeMillis())
+                    .apply();
+        }
+
+        NotificationManager manager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
+        if (manager == null) return;
         ensureChannel(manager);
 
-        Intent intent = new Intent(this, PushLauncherActivity.class);
+        Intent intent = new Intent(context, PushLauncherActivity.class);
         intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
         intent.putExtra("open_orders", true);
         if (orderId != null) intent.putExtra("order_id", orderId);
 
         int requestCode = orderId == null ? (int) System.currentTimeMillis() : orderId.hashCode();
         PendingIntent pendingIntent = PendingIntent.getActivity(
-                this,
+                context,
                 requestCode,
                 intent,
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
@@ -75,9 +88,9 @@ public class AdminFirebaseMessagingService extends FirebaseMessagingService {
         Uri sound = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION);
         Notification.Builder builder;
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            builder = new Notification.Builder(this, CHANNEL_ID);
+            builder = new Notification.Builder(context, CHANNEL_ID);
         } else {
-            builder = new Notification.Builder(this);
+            builder = new Notification.Builder(context);
             builder.setPriority(Notification.PRIORITY_HIGH);
             builder.setSound(sound);
             builder.setVibrate(new long[]{0, 250, 120, 250});

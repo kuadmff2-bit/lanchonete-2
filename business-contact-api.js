@@ -64,11 +64,17 @@ async function readContact(env) {
   }
 }
 
+export async function readBusinessContact(env) {
+  return readContact(env);
+}
+
 export async function handleBusinessContact(request, env) {
   if (request.method === "GET") return json(await readContact(env));
   if (request.method !== "POST") return json({ error: "Método não permitido." }, 405);
   if (!storageConfigured(env)) return json({ error: "Armazenamento ainda não configurado no Cloudflare." }, 500);
-  if (!env.ADMIN_PASSWORD && !env.ADMIN_PASSWORD_SHA256) return json({ error: "Senha de administrador não configurada." }, 500);
+  const hasPasswordCredential = Boolean(env.ADMIN_PASSWORD || env.ADMIN_PASSWORD_SHA256);
+  const hasAppCredential = Boolean(env.ADMIN_APP_TOKEN || env.ADMIN_APP_TOKEN_SHA256);
+  if (!hasPasswordCredential && !hasAppCredential) return json({ error: "Acesso administrativo não configurado." }, 500);
 
   const isAdminApp = (request.headers.get("user-agent") || "").includes("LanchoneteAdminApp/");
   const appToken = request.headers.get("x-admin-app-token") || "";

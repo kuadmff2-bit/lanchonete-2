@@ -63,8 +63,10 @@ async function createAdminSession(env) {
 }
 
 async function authorized(request, env) {
-  if (!env.ADMIN_PASSWORD && !env.ADMIN_PASSWORD_SHA256) {
-    return { ok: false, response: json({ error: "Senha de administrador não configurada no Cloudflare." }, 500) };
+  const hasPasswordCredential = Boolean(env.ADMIN_PASSWORD || env.ADMIN_PASSWORD_SHA256);
+  const hasAppCredential = Boolean(env.ADMIN_APP_TOKEN || env.ADMIN_APP_TOKEN_SHA256);
+  if (!hasPasswordCredential && !hasAppCredential) {
+    return { ok: false, response: json({ error: "Acesso administrativo não configurado no Cloudflare." }, 500) };
   }
 
   const sessionToken = readCookie(request, ADMIN_SESSION_COOKIE);
@@ -160,11 +162,13 @@ function normalizeBranding(data, defaults) {
     subtitle: safeText(data?.subtitle, 100) || defaults.subtitle,
     heroTitle: safeText(data?.heroTitle, 120) || defaults.heroTitle,
     heroText: safeText(data?.heroText, 240) || defaults.heroText,
-    primaryColor: safeHexColor(data?.primaryColor, defaults.primaryColor),
-    accentColor: safeHexColor(data?.accentColor, defaults.accentColor),
-    backgroundColor: safeHexColor(data?.backgroundColor, defaults.backgroundColor),
-    surfaceColor: safeHexColor(data?.surfaceColor, defaults.surfaceColor),
-    textColor: safeHexColor(data?.textColor, defaults.textColor),
+    // A identidade de cor é fixa por lanchonete. O administrador escolhe
+    // somente entre os modos claro e escuro no próprio aparelho.
+    primaryColor: defaults.primaryColor,
+    accentColor: defaults.accentColor,
+    backgroundColor: defaults.backgroundColor,
+    surfaceColor: defaults.surfaceColor,
+    textColor: defaults.textColor,
     logo: String(data?.logo || ""),
     heroImage: String(data?.heroImage || ""),
     pageBackgroundImage: String(data?.pageBackgroundImage || ""),
@@ -226,11 +230,6 @@ async function handleBranding(request, env) {
     subtitle: branding.subtitle,
     heroTitle: branding.heroTitle,
     heroText: branding.heroText,
-    primaryColor: branding.primaryColor,
-    accentColor: branding.accentColor,
-    backgroundColor: branding.backgroundColor,
-    surfaceColor: branding.surfaceColor,
-    textColor: branding.textColor,
     logo: branding.logo,
     heroImage: branding.heroImage,
     pageBackgroundImage: branding.pageBackgroundImage,
@@ -560,6 +559,16 @@ async function updateOrderStatus(request, env, orderId) {
   if (index < 0) return json({ error: "Pedido não encontrado no histórico recente." }, 404);
 
   const previous = recent[index];
+  if (previous.status === status) {
+    return authJson({
+      ok: true,
+      order: previous,
+      stats,
+      recent,
+      statusChanged: false,
+      storageConfigured: true
+    }, auth);
+  }
   if (previous.status !== "cancelado" && status === "cancelado") removeOrderFromStats(stats, previous);
   if (previous.status === "cancelado" && status !== "cancelado") addOrderToStats(stats, previous);
 
@@ -571,7 +580,7 @@ async function updateOrderStatus(request, env, orderId) {
     storagePut(env, "recent-orders", JSON.stringify(recent.slice(0, MAX_RECENT_ORDERS)))
   ]);
 
-  return authJson({ ok: true, order: updated, stats, recent, storageConfigured: true }, auth);
+  return authJson({ ok: true, order: updated, stats, recent, statusChanged: true, storageConfigured: true }, auth);
 }
 
 async function handleOrders(request, env, url) {

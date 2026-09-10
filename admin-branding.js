@@ -6,12 +6,7 @@
     name: document.querySelector("#brandName"),
     subtitle: document.querySelector("#brandSubtitle"),
     heroTitle: document.querySelector("#brandHeroTitle"),
-    heroText: document.querySelector("#brandHeroText"),
-    primaryColor: document.querySelector("#brandPrimary"),
-    accentColor: document.querySelector("#brandAccent"),
-    backgroundColor: document.querySelector("#brandBackground"),
-    surfaceColor: document.querySelector("#brandSurface"),
-    textColor: document.querySelector("#brandText")
+    heroText: document.querySelector("#brandHeroText")
   };
 
   const images = {
@@ -93,11 +88,16 @@
     config.filename.textContent = branding?.[key] ? "Imagem personalizada pronta" : "Usando a imagem original";
   }
 
-  function collectTextAndColors() {
+  function collectBranding() {
     const next = { ...branding };
     Object.entries(fields).forEach(([key, input]) => {
       next[key] = input.value.trim();
     });
+    delete next.primaryColor;
+    delete next.accentColor;
+    delete next.backgroundColor;
+    delete next.surfaceColor;
+    delete next.textColor;
     return next;
   }
 
@@ -109,13 +109,14 @@
     const logo = document.querySelector("#brandPreviewLogo");
     const hero = document.querySelector("#brandPreviewHero");
     const heroTitle = document.querySelector("#brandPreviewHeroTitle");
-    const values = collectTextAndColors();
+    const values = collectBranding();
+    const styles = getComputedStyle(document.documentElement);
 
-    preview.style.setProperty("--preview-primary", values.primaryColor);
-    preview.style.setProperty("--preview-accent", values.accentColor);
-    preview.style.setProperty("--preview-bg", values.backgroundColor);
-    preview.style.setProperty("--preview-surface", values.surfaceColor);
-    preview.style.setProperty("--preview-text", values.textColor);
+    preview.style.setProperty("--preview-primary", styles.getPropertyValue("--brand-primary").trim());
+    preview.style.setProperty("--preview-accent", styles.getPropertyValue("--brand-accent").trim());
+    preview.style.setProperty("--preview-bg", styles.getPropertyValue("--bg").trim());
+    preview.style.setProperty("--preview-surface", styles.getPropertyValue("--surface").trim());
+    preview.style.setProperty("--preview-text", styles.getPropertyValue("--text").trim());
     name.textContent = values.name || "Nome da lanchonete";
     subtitle.textContent = values.subtitle || "Cardápio digital";
     heroTitle.textContent = values.heroTitle || "Seu título principal";
@@ -165,7 +166,7 @@
     saveButton.disabled = true;
     status("Salvando aparência...");
     try {
-      const payload = collectTextAndColors();
+      const payload = collectBranding();
       const data = await api("/api/branding", {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -182,7 +183,7 @@
   });
 
   document.querySelector("#resetBranding").addEventListener("click", async () => {
-    if (!confirm("Restaurar nome, textos, imagens e cores originais deste site?")) return;
+    if (!confirm("Restaurar o nome, os textos e as imagens originais deste site?")) return;
     status("Restaurando o visual original...");
     try {
       const data = await api("/api/branding", { method: "DELETE" });
@@ -208,4 +209,6 @@
       status("Não foi possível carregar as opções de aparência.", "error");
     }
   })();
+
+  window.addEventListener("appthemechange", renderMiniPreview);
 })();

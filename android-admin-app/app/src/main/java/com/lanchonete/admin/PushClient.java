@@ -22,7 +22,7 @@ public final class PushClient {
     private static final String BASE_URL = "https://lanchonete-2.kuadmff2.workers.dev";
     private static final String REGISTER_URL = BASE_URL + "/api/push/register";
     private static final String CONFIG_URL = BASE_URL + "/api/push/config";
-    private static final String APP_USER_AGENT = "LanchoneteAdminApp/2.0-l2";
+    private static final String APP_USER_AGENT = "LanchoneteAdminApp/1.3-l2";
 
     private static volatile boolean configRequestInProgress = false;
     private static volatile long nextConfigAttemptAt = 0L;
@@ -147,7 +147,8 @@ public final class PushClient {
         if (token == null || token.trim().isEmpty()) return;
 
         String cookies = CookieManager.getInstance().getCookie(BASE_URL);
-        if (cookies == null || !cookies.contains("lanchonete_admin_session=")) return;
+        String appToken = BuildConfig.ADMIN_APP_TOKEN == null ? "" : BuildConfig.ADMIN_APP_TOKEN.trim();
+        if ((cookies == null || !cookies.contains("lanchonete_admin_session=")) && appToken.isEmpty()) return;
 
         String cleanToken = token.trim();
         new Thread(() -> {
@@ -159,7 +160,8 @@ public final class PushClient {
                 connection.setReadTimeout(10000);
                 connection.setDoOutput(true);
                 connection.setRequestProperty("Content-Type", "application/json; charset=utf-8");
-                connection.setRequestProperty("Cookie", cookies);
+                if (cookies != null && !cookies.isEmpty()) connection.setRequestProperty("Cookie", cookies);
+                if (!appToken.isEmpty()) connection.setRequestProperty("x-admin-app-token", appToken);
                 connection.setRequestProperty("User-Agent", APP_USER_AGENT);
 
                 String escaped = cleanToken.replace("\\", "\\\\").replace("\"", "\\\"");

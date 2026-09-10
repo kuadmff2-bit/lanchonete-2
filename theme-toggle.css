@@ -1,0 +1,178 @@
+:root,
+:root[data-theme="dark"] {
+  color-scheme: dark;
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg: #fff8f1;
+  --surface: #ffffff;
+  --surface2: #f8ede3;
+  --card: #ffffff;
+  --card2: #f8ede3;
+  --text: #20160f;
+  --muted: #65594f;
+  --line: #dacbbe;
+  --red: #b4232c;
+}
+
+:root[data-brand-style="bold"][data-theme="dark"] {
+  --bg: #08152f;
+  --surface: #102451;
+  --surface2: #193367;
+  --card: #102451;
+  --card2: #193367;
+  --text: #f7f9ff;
+  --muted: #aab8d8;
+  --line: #344f82;
+  --brand-primary: #1746a2;
+  --brand-accent: #ffc857;
+  --brand-on-primary: #ffffff;
+  --brand-on-accent: #111111;
+}
+
+:root[data-brand-style="bold"][data-theme="light"] {
+  --bg: #edf3ff;
+  --surface: #ffffff;
+  --surface2: #e4edff;
+  --card: #ffffff;
+  --card2: #e4edff;
+  --text: #10244a;
+  --muted: #56698d;
+  --line: #bdcbea;
+  --brand-primary: #1746a2;
+  --brand-accent: #ffc857;
+  --brand-on-primary: #ffffff;
+  --brand-on-accent: #111111;
+}
+
+.topbar-actions,
+.head-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.theme-toggle {
+  min-height: 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 0 13px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.theme-toggle span {
+  color: var(--brand-primary, var(--orange));
+  font-size: 17px;
+  line-height: 1;
+}
+
+:root[data-theme="light"] body.admin-view .login-panel,
+:root[data-theme="light"] body.admin-view .admin-card,
+:root[data-theme="light"] body.admin-view .stat-card,
+:root[data-theme="light"] body.admin-view .branding-group,
+:root[data-theme="light"] body.admin-view .admin-product,
+:root[data-theme="light"] body.admin-view .tab-button,
+:root[data-theme="light"] body.admin-view .secondary-small,
+:root[data-theme="light"] body.admin-view .image-editor {
+  background: var(--card);
+  border-color: var(--line);
+  color: var(--text);
+}
+
+:root[data-theme="light"] body.admin-view input,
+:root[data-theme="light"] body.admin-view textarea,
+:root[data-theme="light"] body.admin-view select,
+:root[data-theme="light"] body.admin-view .image-picker,
+:root[data-theme="light"] body.admin-view .preview,
+:root[data-theme="light"] body.admin-view .image-preview,
+:root[data-theme="light"] body.admin-view .branding-thumb,
+:root[data-theme="light"] body.admin-view .order-action-button {
+  background: var(--card2) !important;
+  border-color: var(--line) !important;
+  color: var(--text) !important;
+}
+
+:root[data-theme="light"] body.admin-view label,
+:root[data-theme="light"] body.admin-view .field-title,
+:root[data-theme="light"] body.admin-view .admin-head p,
+:root[data-theme="light"] body.admin-view .panel-note,
+:root[data-theme="light"] body.admin-view .branding-intro,
+:root[data-theme="light"] body.admin-view .branding-group > p,
+:root[data-theme="light"] body.admin-view .card-title span,
+:root[data-theme="light"] body.admin-view .stat-card small,
+:root[data-theme="light"] body.admin-view .recent-order-id small,
+:root[data-theme="light"] body.admin-view .recent-order-main small,
+:root[data-theme="light"] body.admin-view .empty-admin,
+:root[data-theme="light"] body.admin-view .security-note,
+:root[data-theme="light"] body.admin-view .field-hint,
+:root[data-theme="light"] body.admin-view label small {
+  color: var(--muted) !important;
+}
+
+:root[data-theme="light"] body.admin-view .tab-button {
+  color: var(--text);
+}
+
+:root[data-theme="light"] body.admin-view .tab-button.active,
+:root[data-theme="light"] body.admin-view .save-button {
+  background: var(--brand-primary) !important;
+  border-color: var(--brand-primary) !important;
+  color: var(--brand-on-primary) !important;
+}
+
+:root[data-theme="light"] body:not(.admin-view) .sheet,
+:root[data-theme="light"] body:not(.admin-view) .checkout-modal,
+:root[data-theme="light"] body:not(.admin-view) .order-success-modal {
+  background: var(--surface);
+  color: var(--text);
+}
+
+:root[data-theme="light"] body:not(.admin-view) .product-image,
+:root[data-theme="light"] body:not(.admin-view) .product-image.bebida {
+  background-color: #efe3d8;
+}
+
+:root[data-theme="light"] input::placeholder,
+:root[data-theme="light"] textarea::placeholder {
+  color: #75695f;
+  opacity: 1;
+}
+
+@media (max-width: 560px) {
+  .theme-toggle {
+    width: 42px;
+    padding: 0;
+  }
+
+  .theme-toggle b {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+  }
+
+  .head-actions .theme-toggle,
+  .head-actions .back-link {
+    flex: 1;
+    width: auto;
+  }
+
+  .head-actions .theme-toggle b {
+    position: static;
+    width: auto;
+    height: auto;
+    overflow: visible;
+    clip: auto;
+  }
+}

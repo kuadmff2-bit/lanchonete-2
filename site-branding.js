@@ -36,15 +36,36 @@
     });
   }
 
+  function themePalette(variant, theme) {
+    const palettes = {
+      original: {
+        dark: { background: "#0d0d0d", surface: "#171717", text: "#f5f5f3" },
+        light: { background: "#fff8f1", surface: "#ffffff", text: "#20160f" }
+      },
+      bold: {
+        dark: { background: "#08152f", surface: "#102451", text: "#f7f9ff" },
+        light: { background: "#edf3ff", surface: "#ffffff", text: "#10244a" }
+      },
+      artisan: {
+        dark: { background: "#211218", surface: "#321b24", text: "#fff8ee" },
+        light: { background: "#fbf5ed", surface: "#fffdf9", text: "#321b24" }
+      }
+    };
+    const family = palettes[variant] || palettes.original;
+    return family[theme] || family.dark;
+  }
+
   function apply(branding) {
     if (!branding) return;
     const primary = branding.primaryColor;
     const accent = branding.accentColor;
-    const background = branding.backgroundColor;
-    const surface = branding.surfaceColor;
-    const text = branding.textColor;
-    const darkBackground = readableOn(background) === "#ffffff";
     const variant = branding.styleVariant || root.dataset.brandStyle || "original";
+    const theme = root.dataset.theme === "light" ? "light" : "dark";
+    const palette = themePalette(variant, theme);
+    const background = palette.background;
+    const surface = palette.surface;
+    const text = palette.text;
+    const darkBackground = theme === "dark";
 
     root.dataset.brandStyle = variant;
     root.style.setProperty("--bg", background);
@@ -53,7 +74,7 @@
     root.style.setProperty("--card", surface);
     root.style.setProperty("--card2", mix(surface, background, 0.42));
     root.style.setProperty("--text", text);
-    root.style.setProperty("--muted", mix(text, background, 0.45));
+    root.style.setProperty("--muted", mix(text, background, theme === "dark" ? 0.45 : 0.30));
     root.style.setProperty("--line", mix(surface, text, darkBackground ? 0.16 : 0.2));
     root.style.setProperty("--orange", primary);
     root.style.setProperty("--green", accent);
@@ -76,7 +97,7 @@
       root.style.setProperty("--green", accent);
     }
 
-    if (metaTheme) metaTheme.content = primary;
+    if (metaTheme) metaTheme.content = theme === "dark" ? background : surface;
     setText("[data-brand-name]", branding.name);
     setText("[data-brand-name-upper]", branding.name.toLocaleUpperCase("pt-BR"));
     setText("[data-brand-subtitle]", branding.subtitle);
@@ -97,7 +118,8 @@
     if (favicon) {
       favicon.href = logo;
       favicon.type = logo.startsWith("data:image/png") ? "image/png"
-        : logo.startsWith("data:image/webp") ? "image/webp" : "image/svg+xml";
+        : logo.startsWith("data:image/webp") ? "image/webp"
+          : logo.startsWith("data:image/jpeg") ? "image/jpeg" : "image/svg+xml";
     }
 
     const heroImage = branding.heroImage || branding.defaultHeroImage;
@@ -141,4 +163,8 @@
 
   window.SiteBranding = { current: null, apply, load, mix, readableOn };
   window.SiteBranding.ready = load();
+
+  window.addEventListener("appthemechange", () => {
+    if (window.SiteBranding.current) apply(window.SiteBranding.current);
+  });
 })();

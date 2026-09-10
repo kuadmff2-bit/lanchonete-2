@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="pt-BR" data-brand-style="bold">
+<html lang="pt-BR" data-brand-style="bold" data-theme="dark">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -7,11 +7,13 @@
   <meta name="robots" content="noindex,nofollow">
   <title>Admin | Lanchonete 2</title>
   <link id="siteFavicon" rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <script src="theme-toggle.js"></script>
   <link rel="stylesheet" href="admin.css">
   <link rel="stylesheet" href="promo-order-admin.css">
   <link rel="stylesheet" href="admin-theme.css">
   <link rel="stylesheet" href="site-branding.css">
   <link rel="stylesheet" href="admin-branding.css">
+  <link rel="stylesheet" href="theme-toggle.css">
 </head>
 <body class="admin-view">
   <main class="admin-shell">
@@ -33,7 +35,7 @@
     <div id="adminApp" hidden>
       <header class="admin-head">
         <div><span>GESTÃO DO DIA</span><h1 data-brand-admin-title>Painel da Lanchonete 2</h1><p>Pedidos, produtos, promoções, aparência e WhatsApp.</p></div>
-        <div class="head-actions"><a href="/" class="back-link">Ver site</a><button type="button" class="back-link button-link" id="logoutButton">Sair</button></div>
+        <div class="head-actions"><button class="theme-toggle" type="button" data-theme-toggle aria-label="Ativar modo claro"></button><a href="/?preview=admin" class="back-link">Ver prévia do site</a><button type="button" class="back-link button-link" id="logoutButton">Sair</button></div>
       </header>
 
       <nav class="admin-tabs" aria-label="Seções do painel">
@@ -45,7 +47,7 @@
 
       <section class="tab-panel active" id="tab-dashboard">
         <div class="panel-heading"><div><span>RESUMO</span><h2>Pedidos</h2></div><button type="button" class="secondary-small" id="refreshOrders">Atualizar</button></div>
-        <p class="panel-note">Os números contam os pedidos registrados pelo site. Pedidos cancelados deixam de entrar nos totais.</p>
+        <p class="panel-note">Aqui aparecem somente os pedidos reais enviados pelo cardápio. Pedidos cancelados deixam de fazer parte dos totais.</p>
         <div class="stats-grid">
           <article class="stat-card"><small>Pedidos hoje</small><strong id="todayOrders">0</strong></article>
           <article class="stat-card"><small>Total de pedidos</small><strong id="totalOrders">0</strong></article>
@@ -143,7 +145,7 @@
         <section class="admin-card branding-card">
           <div>
             <div class="card-title"><h3>Personalize do seu jeito</h3><span>prévia ao vivo</span></div>
-            <p class="branding-intro">Troque nome, textos, logo, capa, fundo e cores. As mudanças aparecem no cardápio e na identidade deste painel.</p>
+            <p class="branding-intro">Troque nome, textos, logo, capa e imagem de fundo. A paleta azul e amarela permanece fixa para garantir boa leitura nos modos claro e escuro.</p>
           </div>
 
           <form id="brandingForm">
@@ -186,16 +188,6 @@
                   </div>
                 </section>
 
-                <section class="branding-group branding-colors">
-                  <div><h3>Cores</h3><p>Escolha uma paleta legível e com bom contraste.</p></div>
-                  <div class="color-grid">
-                    <label class="color-field"><input id="brandPrimary" type="color"><span>Principal</span><small>Botões e destaques</small></label>
-                    <label class="color-field"><input id="brandAccent" type="color"><span>Acento</span><small>WhatsApp e detalhes</small></label>
-                    <label class="color-field"><input id="brandBackground" type="color"><span>Fundo</span><small>Fundo da página</small></label>
-                    <label class="color-field"><input id="brandSurface" type="color"><span>Cartões</span><small>Produtos e painéis</small></label>
-                    <label class="color-field"><input id="brandText" type="color"><span>Texto</span><small>Texto principal</small></label>
-                  </div>
-                </section>
               </div>
 
               <aside class="brand-live-preview" id="brandLivePreview">
@@ -206,7 +198,7 @@
 
             <div class="branding-actions">
               <button type="submit" class="save-button" id="saveBranding">Salvar aparência</button>
-              <button type="button" class="secondary-button" id="resetBranding">Restaurar visual original</button>
+              <button type="button" class="secondary-button" id="resetBranding">Restaurar nome e imagens originais</button>
             </div>
             <p class="status" id="brandingStatus" aria-live="polite"></p>
           </form>

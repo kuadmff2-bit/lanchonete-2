@@ -28,7 +28,7 @@ jobs:
           curl --fail --location --retry 5 --retry-all-errors --retry-delay 5 \
             "https://raw.githubusercontent.com/kuadmff2-bit/Lanchonete-site-/main/apk/Lanchonete-2-Admin.apk" \
             --output apk/Lanchonete-2-Admin.apk
-          cp apk/Lanchonete-2-Admin.apk apk/Lanchonete-2-Admin-v1.2.apk
+          cp apk/Lanchonete-2-Admin.apk apk/Lanchonete-2-Admin-v1.3.apk
           unzip -tq apk/Lanchonete-2-Admin.apk
 
       - name: Gravar arquivos no repositório
@@ -36,11 +36,11 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add apk/Lanchonete-2-Admin.apk apk/Lanchonete-2-Admin-v1.2.apk
+          git add apk/Lanchonete-2-Admin.apk apk/Lanchonete-2-Admin-v1.3.apk
           if git diff --cached --quiet; then
             echo "APK já está atualizado."
             exit 0
           fi
-          git commit -m "Adicionar APK administrador final v1.2 [skip ci]"
+          git commit -m "Adicionar APK administrador final v1.3 [skip ci]"
           git pull --rebase origin main
           git push

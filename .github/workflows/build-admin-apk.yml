@@ -57,25 +57,25 @@ jobs:
         if: env.ADMIN_APP_TOKEN != ''
         run: |
           mkdir -p apk
-          cp android-admin-app/app/build/outputs/apk/debug/app-debug.apk apk/Lanchonete-2-Admin-v1.2.apk
+          cp android-admin-app/app/build/outputs/apk/debug/app-debug.apk apk/Lanchonete-2-Admin-v1.3.apk
           cp android-admin-app/app/build/outputs/apk/debug/app-debug.apk apk/Lanchonete-2-Admin.apk
 
       - name: Upload artifact
         if: env.ADMIN_APP_TOKEN != ''
         uses: actions/upload-artifact@v4
         with:
-          name: Lanchonete-2-Admin-v1.2
-          path: apk/Lanchonete-2-Admin-v1.2.apk
+          name: Lanchonete-2-Admin-v1.3
+          path: apk/Lanchonete-2-Admin-v1.3.apk
 
       - name: Save APK in repository
         if: env.ADMIN_APP_TOKEN != ''
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add apk/Lanchonete-2-Admin.apk apk/Lanchonete-2-Admin-v1.2.apk
+          git add apk/Lanchonete-2-Admin.apk apk/Lanchonete-2-Admin-v1.3.apk
           if git diff --cached --quiet; then
             echo "APK sem alterações."
             exit 0
           fi
-          git commit -m "Atualizar APK Lanchonete 2 v1.2 [skip ci]"
+          git commit -m "Atualizar APK Lanchonete 2 v1.3 [skip ci]"
           git push

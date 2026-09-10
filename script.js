@@ -14,12 +14,6 @@ const FALLBACK_PRODUCTS = [
   { id: "13", name: "Misto Simples", price: 5, description: "Simples, rápido e saboroso.", category: "lanche", available: true, image: "" }
 ];
 
-let WHATSAPP_NUMBER = String(window.BUSINESS_WHATSAPP_NUMBER || "").replace(/\D/g, "");
-window.addEventListener("business-whatsapp-updated", (event) => {
-  const next = String(event.detail?.whatsappNumber || "").replace(/\D/g, "");
-  if (next) WHATSAPP_NUMBER = next;
-});
-
 let products = [...FALLBACK_PRODUCTS];
 const cart = new Map();
 const $ = (selector) => document.querySelector(selector);
@@ -47,6 +41,16 @@ const changeWrap = $("#changeWrap");
 const changeFor = $("#changeFor");
 const addressFields = $("#addressFields");
 const addressInput = $("#address");
+const previewMode = new URLSearchParams(window.location.search).get("preview") === "admin";
+const successModal = $("#orderSuccessModal");
+const successBackdrop = $("#successBackdrop");
+
+if (previewMode) {
+  const banner = $("#previewModeBanner");
+  if (banner) banner.hidden = false;
+  checkoutButton.textContent = "Simular pedido";
+  document.body.classList.add("is-admin-preview");
+}
 
 function productCard(product) {
   const available = product.available !== false;
@@ -147,30 +151,6 @@ function orderItems() {
   }).filter(Boolean);
 }
 
-function buildWhatsAppMessage(formData, registeredOrder) {
-  const total = Number(registeredOrder?.total ?? cartDetails().total);
-  const deliveryType = formData.get("deliveryType");
-  const payment = formData.get("payment");
-  const customerPhone = String(formData.get("customerPhone") || "").trim();
-  const lines = ["*NOVO PEDIDO - LANCHONETE 2*", `*Pedido:* ${registeredOrder?.id || ""}`, "", `*Cliente:* ${formData.get("customerName").trim()}`, `*WhatsApp:* ${customerPhone}`, `*Recebimento:* ${deliveryType}`];
-  if (deliveryType === "Entrega") {
-    lines.push(`*Endereço:* ${formData.get("address").trim()}`);
-    const reference = formData.get("reference").trim();
-    if (reference) lines.push(`*Referência:* ${reference}`);
-  }
-  lines.push("", "*PEDIDO*");
-  orderItems().forEach((item) => lines.push(`${item.qty}x ${item.name} - ${money(item.price * item.qty)}`));
-  lines.push("", `*Total:* ${money(total)}`, `*Pagamento:* ${payment}`);
-  if (payment === "Dinheiro") {
-    const change = formData.get("changeFor").trim();
-    lines.push(`*Troco para:* ${change ? `R$ ${change}` : "não informado"}`);
-  }
-  const note = formData.get("orderNote").trim();
-  if (note) lines.push("", `*Observação:* ${note}`);
-  lines.push("", "Pedido registrado pelo cardápio digital da Lanchonete 2.");
-  return lines.join("\n");
-}
-
 function localDateKey() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -196,6 +176,24 @@ async function registerOrder(formData) {
     items: orderItems().map(({ id, name, qty }) => ({ id, name, qty }))
   };
 
+  const data = await submitOrderPayload(payload);
+  return Object.assign(data.order, { _messaging: data.messaging || null });
+}
+
+async function submitOrderPayload(payload) {
+  if (previewMode) {
+    return {
+      order: {
+        ...payload,
+        id: "PRÉVIA",
+        total: cartDetails().total,
+        createdAt: new Date().toISOString(),
+        status: "teste"
+      },
+      messaging: { preview: true, sent: false }
+    };
+  }
+
   const response = await fetch("/api/orders", {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -204,7 +202,36 @@ async function registerOrder(formData) {
   });
   const data = await response.json().catch(() => ({}));
   if (!response.ok || !data?.order) throw new Error(data.error || "Não foi possível registrar o pedido. Tente novamente.");
-  return data.order;
+  return data;
+}
+
+function showOrderSuccess(order) {
+  const title = $("#orderSuccessTitle");
+  const message = $("#orderSuccessMessage");
+  const number = $("#orderSuccessNumber");
+
+  if (previewMode || order?._messaging?.preview) {
+    title.textContent = "Simulação concluída";
+    message.textContent = "Este pedido de prévia não foi registrado, contabilizado nem enviado pelo WhatsApp.";
+    number.textContent = "Modo de prévia";
+  } else {
+    title.textContent = "Pedido feito com sucesso!";
+    message.textContent = order?._messaging?.sent === false
+      ? "O pedido foi registrado, mas o WhatsApp automático está temporariamente desconectado."
+      : "Você pode visualizar a confirmação no seu WhatsApp.";
+    number.textContent = order?.id ? `Pedido ${order.id}` : "";
+  }
+
+  successBackdrop.hidden = false;
+  successModal.hidden = false;
+  document.body.style.overflow = "hidden";
+  $("#closeOrderSuccess").focus();
+}
+
+function closeOrderSuccess() {
+  successBackdrop.hidden = true;
+  successModal.hidden = true;
+  document.body.style.overflow = "";
 }
 
 async function loadPromotion() {
@@ -243,6 +270,8 @@ sheetBackdrop.addEventListener("click", closeCart);
 goCheckoutBtn.addEventListener("click", openCheckout);
 $("#closeCheckout").addEventListener("click", closeCheckout);
 checkoutBackdrop.addEventListener("click", closeCheckout);
+$("#closeOrderSuccess").addEventListener("click", closeOrderSuccess);
+successBackdrop.addEventListener("click", closeOrderSuccess);
 document.querySelectorAll('input[name="deliveryType"]').forEach((input) => input.addEventListener("change", syncDeliveryFields));
 paymentEl.addEventListener("change", syncPaymentFields);
 
@@ -253,20 +282,13 @@ checkoutForm.addEventListener("submit", async (event) => {
   if (!checkoutForm.reportValidity()) return;
 
   const formData = new FormData(checkoutForm);
-  const popup = window.open("about:blank", "_blank");
   const originalText = checkoutButton.textContent;
   checkoutButton.disabled = true;
   checkoutButton.textContent = "Registrando pedido...";
 
   try {
-    if (!WHATSAPP_NUMBER) throw new Error("O WhatsApp da lanchonete ainda não foi configurado.");
     const registeredOrder = await registerOrder(formData);
-    const message = buildWhatsAppMessage(formData, registeredOrder);
-    const whatsappUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`;
-
-    checkoutButton.textContent = `Pedido ${registeredOrder.id} registrado`;
-    if (popup) popup.location.href = whatsappUrl;
-    else window.location.href = whatsappUrl;
+    checkoutButton.textContent = previewMode ? "Simulação concluída" : `Pedido ${registeredOrder.id} enviado`;
 
     cart.clear();
     checkoutForm.reset();
@@ -274,12 +296,12 @@ checkoutForm.addEventListener("submit", async (event) => {
     syncDeliveryFields();
     syncPaymentFields();
     closeCheckout();
+    showOrderSuccess(registeredOrder);
   } catch (error) {
-    if (popup) popup.close();
     alert(error.message || "Não foi possível registrar o pedido.");
   } finally {
     checkoutButton.disabled = false;
-    checkoutButton.textContent = originalText;
+    checkoutButton.textContent = previewMode ? "Simular pedido" : originalText;
   }
 });
 

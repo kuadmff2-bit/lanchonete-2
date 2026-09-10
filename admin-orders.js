@@ -47,34 +47,27 @@ function formatWhatsAppPhone(value) {
   return `(${ddd}) ${number.slice(0, 4)}-${number.slice(4)}`;
 }
 
-function customerStatusMessage(order, status) {
-  const name = String(order?.customerName || "Cliente").trim();
-  const orderId = String(order?.id || "").trim();
+let knownOrderIds = null;
 
-  if (status === "confirmado") {
-    return `Olá, ${name}! Seu pedido ${orderId} foi confirmado ✅. Já estamos cuidando dele.`;
+function notifyVisibleNewOrders(recent) {
+  const currentIds = new Set(recent.map((order) => String(order?.id || "")).filter(Boolean));
+  if (knownOrderIds === null) {
+    knownOrderIds = currentIds;
+    return;
   }
 
-  if (status === "saiu_entrega") {
-    if (order?.deliveryType === "Retirada") {
-      return `Olá, ${name}! Seu pedido ${orderId} está pronto para retirada ✅.`;
-    }
-    return `Olá, ${name}! Seu pedido ${orderId} saiu para entrega 🛵. Em breve chega até você.`;
-  }
-
-  if (status === "cancelado") {
-    return `Olá, ${name}. Seu pedido ${orderId} foi cancelado. Se precisar de ajuda, fale com a lanchonete por aqui.`;
-  }
-
-  return "";
-}
-
-function openCustomerWhatsApp(order, status) {
-  const phone = normalizeWhatsAppPhone(order?.customerPhone);
-  const message = customerStatusMessage(order, status);
-  if (!phone || !message) return false;
-  window.location.href = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
-  return true;
+  recent.forEach((order) => {
+    const id = String(order?.id || "");
+    if (!id || knownOrderIds.has(id) || order?.status !== "novo") return;
+    try {
+      window.AdminBridge?.notifyNewOrder?.(
+        id,
+        String(order?.customerName || "Cliente"),
+        money(order?.total)
+      );
+    } catch {}
+  });
+  knownOrderIds = currentIds;
 }
 
 renderDashboard = function (data) {
@@ -86,6 +79,7 @@ renderDashboard = function (data) {
   $("#totalValue").textContent = money(stats.totalValue || 0);
 
   const recent = Array.isArray(data?.recent) ? data.recent : [];
+  notifyVisibleNewOrders(recent);
   $("#recentOrders").innerHTML = recent.length ? recent.map((order) => {
     const date = new Date(order.createdAt);
     const time = Number.isNaN(date.getTime()) ? "" : date.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
@@ -150,11 +144,12 @@ $("#recentOrders").addEventListener("click", async (event) => {
     });
     renderDashboard(data);
 
-    const updatedOrder = data?.order || {};
-    if (openCustomerWhatsApp(updatedOrder, status)) {
-      setStatus("#dashboardStatus", `Pedido ${orderId}: ${ORDER_STATUS_LABELS[status]}. Abrindo mensagem para o cliente...`, "ok");
+    if (data?.statusChanged === false) {
+      setStatus("#dashboardStatus", `O pedido ${orderId} já estava como ${ORDER_STATUS_LABELS[status]}.`, "ok");
+    } else if (data?.messaging?.sent) {
+      setStatus("#dashboardStatus", `Pedido ${orderId}: ${ORDER_STATUS_LABELS[status]}. Mensagem enviada automaticamente ao cliente.`, "ok");
     } else {
-      setStatus("#dashboardStatus", `Pedido ${orderId}: ${ORDER_STATUS_LABELS[status]}. Este pedido não tem WhatsApp salvo.`, "ok");
+      setStatus("#dashboardStatus", `Status atualizado, mas o WhatsApp está desconectado. A mensagem não pôde ser enviada.`, "error");
     }
   } catch (error) {
     setStatus("#dashboardStatus", error.message || "Não foi possível mudar o status.", "error");

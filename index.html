@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="pt-BR" data-brand-style="bold">
+<html lang="pt-BR" data-brand-style="bold" data-theme="dark">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -7,18 +7,27 @@
   <meta name="description" content="Cardápio digital da Lanchonete 2. Escolha, monte o pedido e finalize pelo WhatsApp.">
   <title>Lanchonete 2 | Cardápio</title>
   <link id="siteFavicon" rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <script src="theme-toggle.js"></script>
   <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="promo-order.css">
   <link rel="stylesheet" href="theme.css">
   <link rel="stylesheet" href="site-branding.css">
+  <link rel="stylesheet" href="theme-toggle.css">
 </head>
 <body>
+  <div class="preview-mode-banner" id="previewModeBanner" hidden>
+    <strong>Modo de prévia</strong>
+    <span>Você pode testar o cardápio sem registrar ou enviar pedidos reais.</span>
+  </div>
 <header class="topbar">
     <a class="brand" href="#inicio" aria-label="Lanchonete 2 - início" data-brand-home-link>
       <span class="brand-mark"><img class="brand-logo" data-brand-logo src="assets/favicon.svg" alt=""></span>
       <span><strong data-brand-name-upper>LANCHONETE 2</strong><small data-brand-subtitle>Peça pelo celular</small></span>
     </a>
-    <a class="whatsapp-mini" data-business-whatsapp-link href="#" target="_blank" rel="noopener">WhatsApp</a>
+    <div class="topbar-actions">
+      <button class="theme-toggle" type="button" data-theme-toggle aria-label="Ativar modo claro"></button>
+      <a class="whatsapp-mini" data-business-whatsapp-link href="#" target="_blank" rel="noopener">WhatsApp</a>
+    </div>
   </header>
 
 <main id="inicio">
@@ -122,8 +131,18 @@ Pediu. Chegou.</h1>
       <label>Observação<textarea id="orderNote" name="orderNote" rows="3" placeholder="Ex.: sem cebola, molho separado..."></textarea></label>
       <div class="checkout-total"><span>Total do pedido</span><strong id="checkoutTotal">R$ 0,00</strong></div>
       <button class="whatsapp-button" type="submit">Enviar pedido no WhatsApp</button>
-      <p class="form-note">O WhatsApp abrirá com o pedido preenchido. Basta tocar em enviar.</p>
+      <p class="form-note">Ao enviar, o pedido chega automaticamente à lanchonete e a confirmação aparece no seu WhatsApp.</p>
     </form>
+  </section>
+
+  <div class="modal-backdrop" id="successBackdrop" hidden></div>
+  <section class="order-success-modal" id="orderSuccessModal" hidden role="dialog" aria-modal="true" aria-labelledby="orderSuccessTitle">
+    <span class="order-success-icon" aria-hidden="true">✓</span>
+    <small>PEDIDO ENVIADO</small>
+    <h2 id="orderSuccessTitle">Pedido feito com sucesso!</h2>
+    <p id="orderSuccessMessage">Você pode visualizar a confirmação no seu WhatsApp.</p>
+    <strong id="orderSuccessNumber"></strong>
+    <button class="primary-button" id="closeOrderSuccess" type="button">Entendi</button>
   </section>
 
   <footer><strong data-brand-name>Lanchonete 2</strong><span>Cardápio digital</span></footer>
@@ -131,6 +150,5 @@ Pediu. Chegou.</h1>
   <script src="business-contact.js"></script>
   <script src="script.js"></script>
   <script src="promo-order.js"></script>
-  <script src="whatsapp-direct.js?v=20260907-1"></script>
 </body>
 </html>

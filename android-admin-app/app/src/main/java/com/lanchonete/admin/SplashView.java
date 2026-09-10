@@ -4,61 +4,74 @@ import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
-import android.graphics.Path;
 import android.graphics.RectF;
+import android.graphics.drawable.Drawable;
 import android.view.View;
 
-/** Splash nativa da Lanchonete 2. */
+/**
+ * Splash nativa do aplicativo administrativo.
+ * Desenha a mesma marca de hambúrguer do aplicativo e um indicador de carregamento.
+ */
 public final class SplashView extends View {
     private static final int BG = Color.rgb(238, 244, 255);
-    private static final int BLUE = Color.rgb(23, 70, 162);
-    private static final int BLUE_DARK = Color.rgb(13, 40, 104);
-    private static final int YELLOW = Color.rgb(255, 200, 87);
+    private static final int ORANGE = Color.rgb(23, 70, 162);
     private static final int TRACK = Color.rgb(198, 213, 243);
+    private static final int TEXT = Color.rgb(13, 40, 104);
 
     private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint textPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-    private final Path logoPath = new Path();
     private final RectF spinnerRect = new RectF();
+    private final Drawable burgerLogo;
+
     private float spinnerAngle = -90f;
     private boolean running = true;
 
     public SplashView(Context context) {
         super(context);
+        burgerLogo = context.getDrawable(R.drawable.app_icon);
         setBackgroundColor(BG);
         setClickable(true);
         setFocusable(true);
-        textPaint.setColor(BLUE_DARK);
+
+        textPaint.setColor(TEXT);
         textPaint.setTextAlign(Paint.Align.CENTER);
-        textPaint.setTypeface(android.graphics.Typeface.create("sans", android.graphics.Typeface.BOLD));
+        textPaint.setTypeface(android.graphics.Typeface.create("sans", android.graphics.Typeface.NORMAL));
     }
 
     @Override
     protected void onDraw(Canvas canvas) {
         super.onDraw(canvas);
-        float w = getWidth();
-        float h = getHeight();
+
+        final float w = getWidth();
+        final float h = getHeight();
         if (w <= 0 || h <= 0) return;
 
-        drawAccents(canvas, w, h);
-        float logoSize = Math.min(w * .46f, dp(210));
-        drawLogo(canvas, w / 2f, h * .42f, logoSize);
+        drawSubtleAccents(canvas, w, h);
 
-        float spinnerSize = dp(46);
-        float spinnerY = h * .65f;
-        spinnerRect.set(w / 2f - spinnerSize / 2f, spinnerY - spinnerSize / 2f,
-                w / 2f + spinnerSize / 2f, spinnerY + spinnerSize / 2f);
+        float logoWidth = Math.min(w * 0.48f, dp(220));
+        float logoCenterY = h * 0.43f;
+        drawBurgerLogo(canvas, w / 2f, logoCenterY, logoWidth);
+
+        float spinnerSize = dp(48);
+        float spinnerCenterY = h * 0.64f;
+        spinnerRect.set(
+                w / 2f - spinnerSize / 2f,
+                spinnerCenterY - spinnerSize / 2f,
+                w / 2f + spinnerSize / 2f,
+                spinnerCenterY + spinnerSize / 2f
+        );
 
         paint.setStyle(Paint.Style.STROKE);
         paint.setStrokeCap(Paint.Cap.ROUND);
         paint.setStrokeWidth(dp(4));
         paint.setColor(TRACK);
         canvas.drawArc(spinnerRect, 0, 360, false, paint);
-        paint.setColor(BLUE);
-        canvas.drawArc(spinnerRect, spinnerAngle, 110, false, paint);
 
-        textPaint.setTextSize(sp(16));
-        canvas.drawText("Abrindo o painel", w / 2f, spinnerY + dp(65), textPaint);
+        paint.setColor(ORANGE);
+        canvas.drawArc(spinnerRect, spinnerAngle, 105, false, paint);
+
+        textPaint.setTextSize(sp(17));
+        canvas.drawText("Abrindo o painel", w / 2f, spinnerCenterY + dp(66), textPaint);
 
         if (running) {
             spinnerAngle = (spinnerAngle + 5.5f) % 360f;
@@ -66,49 +79,36 @@ public final class SplashView extends View {
         }
     }
 
-    private void drawAccents(Canvas canvas, float w, float h) {
-        paint.setStyle(Paint.Style.FILL);
-        paint.setColor(YELLOW);
-        canvas.drawCircle(-w * .04f, h * .16f, w * .23f, paint);
-        paint.setColor(Color.argb(26, 23, 70, 162));
-        canvas.drawCircle(w * 1.04f, h * .86f, w * .30f, paint);
-    }
-
-    private void drawLogo(Canvas canvas, float cx, float cy, float size) {
-        RectF shadow = new RectF(cx - size / 2f + dp(8), cy - size / 2f + dp(8),
-                cx + size / 2f + dp(8), cy + size / 2f + dp(8));
-        paint.setStyle(Paint.Style.FILL);
-        paint.setColor(YELLOW);
-        canvas.drawRoundRect(shadow, size * .22f, size * .07f, paint);
-
-        RectF panel = new RectF(cx - size / 2f, cy - size / 2f, cx + size / 2f, cy + size / 2f);
-        paint.setColor(BLUE);
-        canvas.drawRoundRect(panel, size * .07f, size * .22f, paint);
-
-        float left = panel.left;
-        float top = panel.top;
-        logoPath.reset();
-        logoPath.moveTo(left + size * .25f, top + size * .36f);
-        logoPath.cubicTo(left + size * .31f, top + size * .17f,
-                left + size * .72f, top + size * .16f,
-                left + size * .77f, top + size * .36f);
-        logoPath.cubicTo(left + size * .81f, top + size * .52f,
-                left + size * .56f, top + size * .61f,
-                left + size * .29f, top + size * .78f);
-        logoPath.lineTo(left + size * .79f, top + size * .78f);
-
+    private void drawSubtleAccents(Canvas canvas, float w, float h) {
         paint.setStyle(Paint.Style.STROKE);
-        paint.setStrokeCap(Paint.Cap.ROUND);
-        paint.setStrokeJoin(Paint.Join.ROUND);
-        paint.setStrokeWidth(size * .085f);
-        paint.setColor(YELLOW);
-        canvas.drawPath(logoPath, paint);
-        paint.setStrokeWidth(size * .022f);
-        paint.setColor(Color.WHITE);
-        canvas.drawPath(logoPath, paint);
+        paint.setStrokeWidth(dp(1.2f));
+        paint.setColor(Color.argb(120, 23, 70, 162));
+
+        RectF topArc = new RectF(-w * 0.38f, -w * 0.38f, w * 0.28f, w * 0.28f);
+        canvas.drawArc(topArc, 12, 82, false, paint);
+
+        RectF bottomArc = new RectF(w * 0.72f, h - w * 0.28f, w * 1.38f, h + w * 0.38f);
+        canvas.drawArc(bottomArc, 192, 82, false, paint);
     }
 
-    public void stopAnimation() { running = false; }
-    private float dp(float value) { return value * getResources().getDisplayMetrics().density; }
-    private float sp(float value) { return value * getResources().getDisplayMetrics().scaledDensity; }
+    private void drawBurgerLogo(Canvas canvas, float cx, float cy, float width) {
+        if (burgerLogo == null) return;
+        int size = Math.round(width);
+        int left = Math.round(cx - width / 2f);
+        int top = Math.round(cy - width / 2f);
+        burgerLogo.setBounds(left, top, left + size, top + size);
+        burgerLogo.draw(canvas);
+    }
+
+    public void stopAnimation() {
+        running = false;
+    }
+
+    private float dp(float value) {
+        return value * getResources().getDisplayMetrics().density;
+    }
+
+    private float sp(float value) {
+        return value * getResources().getDisplayMetrics().scaledDensity;
+    }
 }

@@ -2,7 +2,7 @@
   "name": "lanchonete-2-whatsapp-robot",
   "version": "1.0.0",
   "private": true,
-  "description": "Ponte 24h entre WhatsApp e o motor de pedidos do cardápio digital.",
+  "description": "Serviço 24h para enviar pedidos e atualizações automáticas pelo WhatsApp, sem atendimento.",
   "main": "index.js",
   "scripts": {
     "start": "node multi-runner.js",
