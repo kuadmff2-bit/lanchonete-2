@@ -1,6 +1,7 @@
 package com.lanchonete.dois.admin;
 
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.util.Log;
 import android.webkit.CookieManager;
 
@@ -11,6 +12,7 @@ import com.google.firebase.messaging.FirebaseMessaging;
 import org.json.JSONObject;
 
 import java.io.BufferedReader;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
@@ -23,8 +25,10 @@ public final class PushClient {
     private static final String REGISTER_URL = BASE_URL + "/api/push/register";
     private static final String CONFIG_URL = BASE_URL + "/api/push/config";
     private static final String APP_USER_AGENT = "LanchoneteAdminApp/1.3-l2";
+    private static final long MIN_REGISTER_INTERVAL_MS = 30000L;
 
     private static volatile boolean configRequestInProgress = false;
+    private static volatile boolean tokenRequestInProgress = false;
     private static volatile long nextConfigAttemptAt = 0L;
 
     private PushClient() {}
@@ -77,20 +81,31 @@ public final class PushClient {
     }
 
     public static void registerCurrentToken(Context context) {
-        if (initialize(context)) {
-            requestFirebaseToken(context);
+        Context appContext = context.getApplicationContext();
+        if (initialize(appContext)) {
+            requestFirebaseToken(appContext);
             return;
         }
-        loadRemoteConfig(context);
+        loadRemoteConfig(appContext);
     }
 
-    private static void requestFirebaseToken(Context context) {
+    private static synchronized void requestFirebaseToken(Context context) {
+        if (tokenRequestInProgress) return;
+        tokenRequestInProgress = true;
+
         try {
             FirebaseMessaging.getInstance().getToken().addOnCompleteListener(task -> {
-                if (!task.isSuccessful() || task.getResult() == null) return;
+                tokenRequestInProgress = false;
+                if (!task.isSuccessful() || task.getResult() == null || task.getResult().trim().isEmpty()) {
+                    Exception error = task.getException();
+                    if (error != null) Log.w(TAG, "Firebase não entregou o token do aparelho.", error);
+                    else Log.w(TAG, "Firebase não entregou o token do aparelho.");
+                    return;
+                }
                 registerToken(context, task.getResult());
             });
         } catch (Exception error) {
+            tokenRequestInProgress = false;
             Log.w(TAG, "Firebase ainda não está pronto para gerar token.", error);
         }
     }
@@ -110,16 +125,10 @@ public final class PushClient {
                 connection.setReadTimeout(10000);
                 connection.setRequestProperty("User-Agent", APP_USER_AGENT);
 
-                if (connection.getResponseCode() < 200 || connection.getResponseCode() >= 300) return;
+                int code = connection.getResponseCode();
+                if (code < 200 || code >= 300) return;
 
-                StringBuilder text = new StringBuilder();
-                try (BufferedReader reader = new BufferedReader(
-                        new InputStreamReader(connection.getInputStream(), StandardCharsets.UTF_8))) {
-                    String line;
-                    while ((line = reader.readLine()) != null) text.append(line);
-                }
-
-                JSONObject data = new JSONObject(text.toString());
+                JSONObject data = new JSONObject(readResponse(connection));
                 if (!data.optBoolean("configured", false)) {
                     nextConfigAttemptAt = System.currentTimeMillis() + 60000L;
                     return;
@@ -146,11 +155,23 @@ public final class PushClient {
     public static void registerToken(Context context, String token) {
         if (token == null || token.trim().isEmpty()) return;
 
+        Context appContext = context.getApplicationContext();
         String cookies = CookieManager.getInstance().getCookie(BASE_URL);
         String appToken = BuildConfig.ADMIN_APP_TOKEN == null ? "" : BuildConfig.ADMIN_APP_TOKEN.trim();
-        if ((cookies == null || !cookies.contains("lanchonete_admin_session=")) && appToken.isEmpty()) return;
+        if ((cookies == null || !cookies.contains("lanchonete_admin_session=")) && appToken.isEmpty()) {
+            Log.w(TAG, "Registro de push aguardando autenticação do APK.");
+            return;
+        }
 
         String cleanToken = token.trim();
+        SharedPreferences preferences = appContext.getSharedPreferences("push", Context.MODE_PRIVATE);
+        String registeredToken = preferences.getString("registered_token", "");
+        long registeredAt = preferences.getLong("registered_at", 0L);
+        if (cleanToken.equals(registeredToken)
+                && System.currentTimeMillis() - registeredAt < MIN_REGISTER_INTERVAL_MS) {
+            return;
+        }
+
         new Thread(() -> {
             HttpURLConnection connection = null;
             try {
@@ -164,22 +185,40 @@ public final class PushClient {
                 if (!appToken.isEmpty()) connection.setRequestProperty("x-admin-app-token", appToken);
                 connection.setRequestProperty("User-Agent", APP_USER_AGENT);
 
-                String escaped = cleanToken.replace("\\", "\\\\").replace("\"", "\\\"");
-                byte[] body = ("{\"token\":\"" + escaped + "\"}").getBytes(StandardCharsets.UTF_8);
+                JSONObject payload = new JSONObject();
+                payload.put("token", cleanToken);
+                byte[] body = payload.toString().getBytes(StandardCharsets.UTF_8);
                 connection.setFixedLengthStreamingMode(body.length);
                 try (OutputStream output = connection.getOutputStream()) {
                     output.write(body);
                 }
 
                 int code = connection.getResponseCode();
+                String responseText = readResponse(connection);
                 if (code >= 200 && code < 300) {
-                    context.getSharedPreferences("push", Context.MODE_PRIVATE)
-                            .edit()
+                    boolean registered = true;
+                    boolean serverConfigured = false;
+                    try {
+                        JSONObject response = new JSONObject(responseText);
+                        registered = response.optBoolean("registered", true);
+                        serverConfigured = response.optBoolean("configured", false);
+                    } catch (Exception ignored) {}
+
+                    preferences.edit()
                             .putString("registered_token", cleanToken)
+                            .putLong("registered_at", System.currentTimeMillis())
+                            .putBoolean("server_registered", registered)
+                            .putBoolean("server_configured", serverConfigured)
                             .apply();
-                    Log.i(TAG, "Aparelho registrado para notificações.");
+
+                    if (registered) {
+                        Log.i(TAG, "Aparelho registrado no servidor de notificações.");
+                    } else {
+                        Log.w(TAG, "Servidor respondeu sem confirmar o registro do aparelho.");
+                    }
                 } else {
-                    Log.w(TAG, "Servidor recusou registro de push: " + code);
+                    preferences.edit().putBoolean("server_registered", false).apply();
+                    Log.w(TAG, "Servidor recusou registro de push: " + code + " " + responseText);
                 }
             } catch (Exception error) {
                 Log.w(TAG, "Não foi possível registrar o token agora.", error);
@@ -187,5 +226,30 @@ public final class PushClient {
                 if (connection != null) connection.disconnect();
             }
         }, "push-register").start();
+    }
+
+    public static boolean isServerRegistered(Context context) {
+        return context.getSharedPreferences("push", Context.MODE_PRIVATE)
+                .getBoolean("server_registered", false);
+    }
+
+    public static long getLastRegistrationAt(Context context) {
+        return context.getSharedPreferences("push", Context.MODE_PRIVATE)
+                .getLong("registered_at", 0L);
+    }
+
+    private static String readResponse(HttpURLConnection connection) throws Exception {
+        InputStream stream;
+        int code = connection.getResponseCode();
+        if (code >= 200 && code < 400) stream = connection.getInputStream();
+        else stream = connection.getErrorStream();
+        if (stream == null) return "";
+
+        StringBuilder text = new StringBuilder();
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(stream, StandardCharsets.UTF_8))) {
+            String line;
+            while ((line = reader.readLine()) != null) text.append(line);
+        }
+        return text.toString();
     }
 }
