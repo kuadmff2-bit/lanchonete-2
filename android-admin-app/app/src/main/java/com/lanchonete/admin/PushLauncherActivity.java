@@ -10,7 +10,7 @@ import android.os.Looper;
 
 public class PushLauncherActivity extends MainActivity {
     private static final int NOTIFICATION_PERMISSION_REQUEST = 6201;
-    private static final long RETRY_INTERVAL_MS = 10000L;
+    private static final long RETRY_INTERVAL_MS = 15000L;
 
     private final Handler pushHandler = new Handler(Looper.getMainLooper());
     private boolean pushLoopRunning = false;
@@ -30,11 +30,10 @@ public class PushLauncherActivity extends MainActivity {
 
         NotificationManager manager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
         AdminFirebaseMessagingService.ensureChannel(manager);
-        PushClient.initialize(this);
 
-        pushHandler.postDelayed(() -> {
-            requestNotificationPermissionIfNeeded();
-        }, 1200L);
+        PushClient.initialize(this);
+        PushClient.registerCurrentToken(this);
+        pushHandler.postDelayed(this::requestNotificationPermissionIfNeeded, 900L);
     }
 
     private void requestNotificationPermissionIfNeeded() {
@@ -44,6 +43,17 @@ public class PushLauncherActivity extends MainActivity {
                     new String[]{Manifest.permission.POST_NOTIFICATIONS},
                     NOTIFICATION_PERMISSION_REQUEST
             );
+            return;
+        }
+        PushClient.registerCurrentToken(this);
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode != NOTIFICATION_PERMISSION_REQUEST) return;
+        if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+            PushClient.registerCurrentToken(this);
         }
     }
 
@@ -52,7 +62,8 @@ public class PushLauncherActivity extends MainActivity {
         super.onResume();
         pushLoopRunning = true;
         pushHandler.removeCallbacks(pushRegistrationLoop);
-        pushHandler.postDelayed(pushRegistrationLoop, 1200L);
+        PushClient.registerCurrentToken(this);
+        pushHandler.postDelayed(pushRegistrationLoop, RETRY_INTERVAL_MS);
     }
 
     @Override
@@ -65,7 +76,7 @@ public class PushLauncherActivity extends MainActivity {
     @Override
     protected void onDestroy() {
         pushLoopRunning = false;
-        pushHandler.removeCallbacks(pushRegistrationLoop);
+        pushHandler.removeCallbacksAndMessages(null);
         super.onDestroy();
     }
 }
