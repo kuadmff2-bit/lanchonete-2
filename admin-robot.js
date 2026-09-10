@@ -70,6 +70,7 @@
     qrBox.hidden = true;
     qrImage.removeAttribute("src");
     resetButton.disabled = !data.configured;
+    resetButton.textContent = "Conectar WhatsApp";
 
     if (!data.configured) {
       badge.classList.add("is-neutral");
@@ -82,37 +83,49 @@
       badge.classList.add("is-connected");
       badge.textContent = "WhatsApp conectado";
       message.textContent = "Pronto para enviar pedidos e atualizações automáticas. Mensagens recebidas não serão respondidas pelo sistema.";
+      resetButton.textContent = "Conectar outro WhatsApp";
       return;
     }
 
     if (data.qrReady && data.qrImage) {
       badge.classList.add("is-waiting");
-      badge.textContent = "Aguardando leitura";
-      message.textContent = "Leia o QR Code com o WhatsApp que enviará as mensagens da lanchonete.";
+      badge.textContent = "QR Code pronto";
+      message.textContent = "Escaneie o QR Code abaixo com o WhatsApp da lanchonete.";
       qrImage.src = data.qrImage;
       qrBox.hidden = false;
+      resetButton.textContent = "Gerar outro QR Code";
       return;
     }
 
     if (data.authState === "unreachable" || data.authState === "error") {
       badge.classList.add("is-error");
       badge.textContent = "Conexão indisponível";
-      message.textContent = data.error || data.lastError || "Não foi possível acessar o serviço do WhatsApp agora.";
+      const rawError = String(data.error || data.lastError || "");
+      message.textContent = /não autorizado/i.test(rawError)
+        ? "O serviço do WhatsApp não autorizou a conexão. Tente atualizar o estado; se persistir, gere um novo QR Code."
+        : rawError || "Não foi possível acessar o serviço do WhatsApp agora.";
+      resetButton.textContent = "Tentar conectar WhatsApp";
       return;
     }
 
     badge.classList.add("is-preparing");
     badge.textContent = "Preparando QR Code";
     message.textContent = "Aguarde alguns segundos. Esta tela será atualizada automaticamente.";
+    resetButton.textContent = "Gerar novo QR Code";
   }
 
   async function loadConnection(host, quiet = false) {
     if (!host || connectionRequestRunning) return;
     connectionRequestRunning = true;
     const button = host.querySelector("#robotConnectionRefresh");
+    const actionStatus = host.querySelector("#robotConnectionActionStatus");
     if (!quiet) button.disabled = true;
     try {
       renderConnection(host, await connectionApi());
+      if (actionStatus && !actionStatus.dataset.locked) {
+        actionStatus.className = "status";
+        actionStatus.textContent = "";
+      }
     } catch (error) {
       renderConnection(host, { configured: true, authState: "unreachable", error: error.message });
     } finally {
@@ -146,7 +159,7 @@
         </div>
         <div class="robot-actions">
           <button type="button" class="admin-secondary" id="robotConnectionRefresh">Atualizar estado</button>
-          <button type="button" class="admin-primary" id="robotConnectionReset">Conectar outro WhatsApp</button>
+          <button type="button" class="admin-primary" id="robotConnectionReset">Conectar WhatsApp</button>
         </div>
         <p class="status" id="robotConnectionActionStatus" aria-live="polite"></p>
       </section>
@@ -174,12 +187,16 @@
 
     host.querySelector("#robotConnectionRefresh").addEventListener("click", () => loadConnection(host));
     host.querySelector("#robotConnectionReset").addEventListener("click", async () => {
-      if (!confirm("Isso desconectará o WhatsApp atual e gerará um novo QR Code. Continuar?")) return;
+      const badge = host.querySelector("#robotConnectionBadge");
+      const isConnected = badge?.classList.contains("is-connected");
+      if (isConnected && !confirm("Isso desconectará o WhatsApp atual e gerará um novo QR Code. Continuar?")) return;
+
       const button = host.querySelector("#robotConnectionReset");
       const status = host.querySelector("#robotConnectionActionStatus");
       button.disabled = true;
+      status.dataset.locked = "1";
       status.className = "status";
-      status.textContent = "Preparando uma nova conexão...";
+      status.textContent = "Preparando um novo QR Code...";
       try {
         const result = await connectionApi({
           method: "POST",
@@ -189,10 +206,14 @@
         status.className = "status ok";
         status.textContent = result.message || "Novo QR Code solicitado.";
         renderConnection(host, { configured: true, authState: "starting" });
-        setTimeout(() => loadConnection(host), 1200);
+        setTimeout(() => {
+          delete status.dataset.locked;
+          loadConnection(host);
+        }, 1400);
       } catch (error) {
         status.className = "status error";
         status.textContent = error.message || "Não foi possível gerar um novo QR Code.";
+        delete status.dataset.locked;
       } finally {
         button.disabled = false;
       }
@@ -203,7 +224,7 @@
       if (document.visibilityState !== "visible") return;
       const panel = document.querySelector("#tab-robot");
       if (panel?.classList.contains("active")) loadConnection(host, true);
-    }, 5000);
+    }, 4000);
     return host;
   }
 
