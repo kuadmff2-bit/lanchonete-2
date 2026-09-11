@@ -19,4 +19,5 @@
   loadScript("admin-whatsapp.js","data-admin-whatsapp");
   loadScript("admin-new-features.js","data-admin-new-features");
   loadScript("admin-layout-fix.js","data-admin-layout-fix");
+  loadScript("admin-swipe-nav.js","data-admin-swipe-nav");
 })();
