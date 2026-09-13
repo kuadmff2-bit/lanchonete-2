@@ -140,3 +140,14 @@
     event.stopImmediatePropagation();
   }, true);
 })();
+
+(() => {
+  if (!(navigator.userAgent || "").includes("LanchoneteAdminApp/")) return;
+  let attempts = 0;
+  const timer = setInterval(() => {
+    const app = document.getElementById("adminApp");
+    if (app && !app.hidden) document.documentElement.dataset.apkReady = "1";
+    attempts += 1;
+    if (attempts >= 60) clearInterval(timer);
+  }, 250);
+})();
