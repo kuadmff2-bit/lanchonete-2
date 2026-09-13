@@ -1,60 +1,13 @@
 (() => {
   const STORAGE_KEY = "lanchonete-theme-v1";
   const root = document.documentElement;
-
-  function normalize(value) {
-    return value === "light" ? "light" : "dark";
-  }
-
-  function storedTheme() {
-    try {
-      return normalize(localStorage.getItem(STORAGE_KEY));
-    } catch {
-      return "dark";
-    }
-  }
-
-  function updateButtons() {
-    const current = normalize(root.dataset.theme);
-    const target = current === "dark" ? "light" : "dark";
-    const label = target === "light" ? "Modo claro" : "Modo escuro";
-    const icon = target === "light" ? "☀" : "☾";
-
-    document.querySelectorAll("[data-theme-toggle]").forEach((button) => {
-      button.innerHTML = `<span aria-hidden="true">${icon}</span><b>${label}</b>`;
-      button.setAttribute("aria-label", `Ativar ${label.toLowerCase()}`);
-      button.setAttribute("title", `Ativar ${label.toLowerCase()}`);
-    });
-  }
-
-  function apply(value, persist = true) {
-    const theme = normalize(value);
-    root.dataset.theme = theme;
-    root.style.colorScheme = theme;
-    if (persist) {
-      try { localStorage.setItem(STORAGE_KEY, theme); } catch {}
-    }
-    updateButtons();
-    window.dispatchEvent(new CustomEvent("appthemechange", { detail: { theme } }));
-    return theme;
-  }
-
-  apply(storedTheme(), false);
-
-  document.addEventListener("click", (event) => {
-    const button = event.target.closest("[data-theme-toggle]");
-    if (!button) return;
-    apply(root.dataset.theme === "light" ? "dark" : "light");
-  });
-
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", updateButtons);
-  } else {
-    updateButtons();
-  }
-
-  window.AppTheme = {
-    apply,
-    get current() { return normalize(root.dataset.theme); }
-  };
+  function normalize(value){return value==="light"?"light":"dark"}
+  function installPublicHeaderFix(){if(document.getElementById("public-theme-header-fix"))return;const style=document.createElement("style");style.id="public-theme-header-fix";style.textContent=`body:not(.admin-view) .whatsapp-mini{display:none!important}body:not(.admin-view) .topbar{height:auto!important;min-height:72px!important;padding:10px 0!important;gap:12px!important;align-items:center!important}body:not(.admin-view) .brand{min-width:0!important;flex:1 1 auto!important;align-items:center!important}body:not(.admin-view) .brand>span:last-child{min-width:0!important}body:not(.admin-view) .brand strong{white-space:normal!important;overflow-wrap:anywhere!important;line-height:1.15!important}body:not(.admin-view) .topbar-actions{display:flex!important;align-items:center!important;justify-content:flex-end!important;flex:0 0 auto!important;margin-left:auto!important;gap:0!important}body:not(.admin-view) .topbar .theme-toggle{position:relative!important;width:46px!important;min-width:46px!important;height:46px!important;min-height:46px!important;padding:0!important;border-radius:14px!important;border:2px solid currentColor!important;display:grid!important;place-items:center!important;box-shadow:0 5px 16px rgba(0,0,0,.20)!important}body:not(.admin-view) .topbar .theme-toggle span{font-size:24px!important;line-height:1!important;color:inherit!important}body:not(.admin-view) .topbar .theme-toggle b{position:absolute!important;width:1px!important;height:1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important}:root[data-theme="dark"] body:not(.admin-view) .topbar .theme-toggle{background:#fff!important;color:#111!important;border-color:#fff!important}:root[data-theme="light"] body:not(.admin-view) .topbar .theme-toggle{background:#171717!important;color:#fff!important;border-color:#171717!important}@media(max-width:560px){body:not(.admin-view) .topbar{width:calc(100% - 24px)!important;min-height:70px!important}}`;document.head.appendChild(style)}
+  function storedTheme(){try{return normalize(localStorage.getItem(STORAGE_KEY))}catch{return"dark"}}
+  function updateButtons(){const current=normalize(root.dataset.theme),target=current==="dark"?"light":"dark",label=target==="light"?"Modo claro":"Modo escuro",icon=target==="light"?"☀":"☾";document.querySelectorAll("[data-theme-toggle]").forEach((button)=>{button.innerHTML=`<span aria-hidden="true">${icon}</span><b>${label}</b>`;button.setAttribute("aria-label",`Ativar ${label.toLowerCase()}`);button.setAttribute("title",`Ativar ${label.toLowerCase()}`)})}
+  function apply(value,persist=true){const theme=normalize(value);root.dataset.theme=theme;root.style.colorScheme=theme;if(persist){try{localStorage.setItem(STORAGE_KEY,theme)}catch{}}updateButtons();window.dispatchEvent(new CustomEvent("appthemechange",{detail:{theme}}));return theme}
+  installPublicHeaderFix();apply(storedTheme(),false);
+  document.addEventListener("click",(event)=>{const button=event.target.closest("[data-theme-toggle]");if(!button)return;apply(root.dataset.theme==="light"?"dark":"light")});
+  if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",()=>{installPublicHeaderFix();updateButtons()});else updateButtons();
+  window.AppTheme={apply,get current(){return normalize(root.dataset.theme)}};
 })();
