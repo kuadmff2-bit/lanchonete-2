@@ -2,19 +2,36 @@
   const STYLE_ID = "admin-layout-fix-style";
   const MODAL_CLASS = "promo-edit-modal-open";
   const BACKDROP_ID = "promoEditBackdrop";
+  const SETTINGS_ID = "__SYS_CONTACTS__";
+  let settingsLoaded = false;
+  let visibilityMigrated = false;
 
   function installStyles() {
     if (document.getElementById(STYLE_ID)) return;
     const style = document.createElement("style");
     style.id = STYLE_ID;
     style.textContent = `
-      body.admin-view .admin-product{display:grid!important;grid-template-columns:96px minmax(0,1fr) auto!important;align-items:start!important;gap:14px!important;overflow:hidden!important}
-      body.admin-view .admin-product-image{grid-column:1!important;width:96px!important;height:96px!important;min-width:96px!important;aspect-ratio:1/1!important;align-self:start!important;position:relative!important;z-index:1!important}
-      body.admin-view .admin-product-main{grid-column:2!important;min-width:0!important;width:100%!important;overflow:hidden!important;padding-top:3px!important;text-align:left!important;display:flex!important;flex-direction:column!important;align-items:flex-start!important;justify-content:flex-start!important}
-      body.admin-view .admin-product-main strong{display:block!important;width:100%!important;max-width:100%!important;margin:0!important;white-space:normal!important;overflow:visible!important;text-overflow:clip!important;overflow-wrap:anywhere!important;word-break:normal!important;line-height:1.25!important;text-align:left!important}
-      body.admin-view .admin-product-main small{display:block!important;width:100%!important;max-width:100%!important;margin-left:0!important;white-space:normal!important;overflow-wrap:anywhere!important;line-height:1.35!important;text-align:left!important}
+      body.admin-view #tab-products{overflow-x:hidden!important}
+      body.admin-view .product-list-card,body.admin-view .product-list{min-width:0!important;max-width:100%!important}
+      body.admin-view .admin-product{width:100%!important;max-width:100%!important;min-width:0!important;display:grid!important;grid-template-columns:88px minmax(0,1fr)!important;grid-template-areas:"photo info" "actions actions"!important;column-gap:14px!important;row-gap:12px!important;align-items:start!important;overflow:hidden!important}
+      body.admin-view .admin-product-image{grid-area:photo!important;grid-column:auto!important;grid-row:auto!important;width:88px!important;height:88px!important;min-width:0!important;max-width:88px!important;aspect-ratio:1/1!important;margin:0!important;position:static!important;transform:none!important;align-self:start!important}
+      body.admin-view .admin-product-main{grid-area:info!important;grid-column:auto!important;grid-row:auto!important;min-width:0!important;max-width:100%!important;width:auto!important;margin:0!important;padding:2px 0 0!important;position:static!important;transform:none!important;overflow:hidden!important;text-align:left!important;display:flex!important;flex-direction:column!important;align-items:flex-start!important}
+      body.admin-view .admin-product-main strong,body.admin-view .admin-product-main small{display:block!important;width:100%!important;max-width:100%!important;min-width:0!important;margin-left:0!important;white-space:normal!important;overflow:visible!important;text-overflow:clip!important;overflow-wrap:anywhere!important;word-break:break-word!important;text-align:left!important}
+      body.admin-view .admin-product-main strong{line-height:1.22!important}
+      body.admin-view .admin-product-main small{line-height:1.35!important}
       body.admin-view .admin-product-main .availability{display:inline-flex!important;align-self:flex-start!important;max-width:100%!important;margin-left:0!important;white-space:normal!important;text-align:center!important}
-      body.admin-view .product-actions{grid-column:3!important;min-width:0!important;align-self:start!important}
+      body.admin-view .product-actions{grid-area:actions!important;grid-column:auto!important;grid-row:auto!important;width:100%!important;min-width:0!important;display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px!important}
+      body.admin-view .product-actions button{width:100%!important;min-width:0!important;max-width:100%!important;white-space:normal!important}
+      body.admin-view #promoV2Visible{pointer-events:none!important}
+      body.admin-view .promo-v2-badges .promo-v2-badge:first-child{display:none!important}
+      body.admin-view [data-promo-toggle-visible]{display:none!important}
+      body.admin-view .promo-v2-actions{grid-template-columns:repeat(3,minmax(0,1fr))!important}
+      body.admin-view [data-promo-id="${SETTINGS_ID}"]{display:none!important}
+      body.admin-view .robot-admin-card[data-legacy-contact-hidden="1"]{display:none!important}
+      body.admin-view .contact-social-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:16px}
+      body.admin-view .contact-social-grid label{min-width:0}
+      body.admin-view .contact-social-grid .full{grid-column:1/-1}
+      body.admin-view .contact-help{margin:6px 0 0;color:var(--muted);font-size:11px;line-height:1.45}
       #${BACKDROP_ID}{position:fixed;inset:0;z-index:9990;background:rgba(7,7,7,.92);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
       body.${MODAL_CLASS}{overflow:hidden!important;overscroll-behavior:none!important}
       body.${MODAL_CLASS} #promoV2Form{position:fixed!important;z-index:9991!important;top:max(10px,env(safe-area-inset-top))!important;left:50%!important;transform:translateX(-50%)!important;width:min(620px,calc(100vw - 20px))!important;max-width:calc(100vw - 20px)!important;max-height:calc(100dvh - 20px)!important;margin:0!important;padding:18px!important;overflow-y:auto!important;overflow-x:hidden!important;overscroll-behavior:contain!important;border:1px solid var(--line,#2c2c2c)!important;border-radius:20px!important;background:var(--card,#171717)!important;box-shadow:0 28px 90px rgba(0,0,0,.65)!important}
@@ -22,76 +39,32 @@
       body.${MODAL_CLASS} #promoV2Form .promo-v2-form-grid .full{grid-column:auto!important}
       body.${MODAL_CLASS} #promoV2ImagePreview{width:min(100%,330px)!important;margin:0 auto!important}
       body.${MODAL_CLASS} #promoV2Live{display:none!important}
-      body.${MODAL_CLASS} #promoV2Form .promo-v2-toggles{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:10px!important}
-      body.${MODAL_CLASS} #promoV2Form .promo-v2-toggles label{min-width:0!important;align-items:flex-start!important;line-height:1.35!important}
       body.${MODAL_CLASS} #promoV2Form .promo-v2-form-actions{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:10px!important}
       body.${MODAL_CLASS} #promoV2Form input,body.${MODAL_CLASS} #promoV2Form textarea,body.${MODAL_CLASS} #promoV2Form button{max-width:100%!important}
       body.${MODAL_CLASS} .image-editor-backdrop{z-index:10020!important}
-      @media(max-width:850px){body.admin-view .admin-product{grid-template-columns:82px minmax(0,1fr)!important;align-items:start!important}body.admin-view .admin-product-image{width:82px!important;height:82px!important;min-width:82px!important}body.admin-view .admin-product-main{grid-column:2!important;padding-left:2px!important}body.admin-view .product-actions{grid-column:1/-1!important;display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;width:100%!important;gap:8px!important}body.admin-view .product-actions button{min-width:0!important;width:100%!important}}
-      @media(max-width:480px){body.admin-view .admin-product{grid-template-columns:68px minmax(0,1fr)!important;column-gap:14px!important;row-gap:10px!important;padding:10px!important}body.admin-view .admin-product-image{width:68px!important;height:68px!important;min-width:68px!important}body.admin-view .admin-product-main{padding-left:0!important;min-width:0!important}body.admin-view .admin-product-main strong{font-size:15px!important;line-height:1.2!important}body.admin-view .admin-product-main small{font-size:12px!important;line-height:1.3!important}body.admin-view .admin-product-main .availability{margin-top:7px!important;font-size:10px!important}body.admin-view .product-actions button{padding:9px 7px!important;font-size:11px!important}body.${MODAL_CLASS} #promoV2Form{top:max(6px,env(safe-area-inset-top))!important;width:calc(100vw - 12px)!important;max-width:calc(100vw - 12px)!important;max-height:calc(100dvh - 12px)!important;padding:14px!important;border-radius:16px!important}body.${MODAL_CLASS} #promoV2Form .promo-v2-toggles,body.${MODAL_CLASS} #promoV2Form .promo-v2-form-actions{grid-template-columns:1fr!important}body.${MODAL_CLASS} #promoV2ImagePreview{width:min(100%,280px)!important}}
+      @media(max-width:560px){body.admin-view .admin-product{grid-template-columns:74px minmax(0,1fr)!important;column-gap:12px!important;padding:10px!important}body.admin-view .admin-product-image{width:74px!important;height:74px!important;max-width:74px!important}body.admin-view .admin-product-main strong{font-size:15px!important}body.admin-view .admin-product-main small{font-size:12px!important}body.admin-view .product-actions button{padding:10px 7px!important;font-size:11px!important}body.admin-view .contact-social-grid{grid-template-columns:1fr!important}body.admin-view .contact-social-grid .full{grid-column:auto}body.admin-view .promo-v2-actions{grid-template-columns:1fr 1fr!important}body.${MODAL_CLASS} #promoV2Form{top:max(6px,env(safe-area-inset-top))!important;width:calc(100vw - 12px)!important;max-width:calc(100vw - 12px)!important;max-height:calc(100dvh - 12px)!important;padding:14px!important;border-radius:16px!important}body.${MODAL_CLASS} #promoV2Form .promo-v2-form-actions{grid-template-columns:1fr!important}}
+      @media(max-width:320px){body.admin-view .admin-product{grid-template-columns:1fr!important;grid-template-areas:"photo" "info" "actions"!important}body.admin-view .admin-product-image{width:84px!important;height:84px!important;max-width:84px!important}}
     `;
     document.head.appendChild(style);
   }
 
-  function closePromoEditor() {
-    document.body.classList.remove(MODAL_CLASS);
-    document.getElementById(BACKDROP_ID)?.remove();
-    const title = document.getElementById("promoV2FormTitle");
-    if (title) title.textContent = "Adicionar promoção";
-  }
-
-  function openPromoEditor() {
-    const form = document.getElementById("promoV2Form");
-    if (!form) return;
-    installStyles();
-    let backdrop = document.getElementById(BACKDROP_ID);
-    if (!backdrop) {
-      backdrop = document.createElement("div");
-      backdrop.id = BACKDROP_ID;
-      backdrop.setAttribute("aria-hidden", "true");
-      backdrop.addEventListener("click", () => {
-        const cancel = document.getElementById("promoV2Cancel");
-        if (cancel && !cancel.hidden) cancel.click();
-        else closePromoEditor();
-      });
-      document.body.appendChild(backdrop);
-    }
-    document.body.classList.add(MODAL_CLASS);
-    const title = document.getElementById("promoV2FormTitle");
-    if (title) title.textContent = "Editar promoção";
-    requestAnimationFrame(() => {
-      form.scrollTop = 0;
-      document.getElementById("promoV2Title")?.focus({ preventScroll: true });
-    });
-  }
-
-  function installStatusObserver() {
-    const status = document.getElementById("promoStatus");
-    if (!status || status.dataset.layoutFixObserved === "1") return Boolean(status);
-    status.dataset.layoutFixObserved = "1";
-    const observer = new MutationObserver(() => {
-      const text = String(status.textContent || "");
-      if (document.body.classList.contains(MODAL_CLASS) && status.classList.contains("ok") && /promoção atualizada/i.test(text)) closePromoEditor();
-    });
-    observer.observe(status, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ["class"] });
-    return true;
-  }
-
+  function closePromoEditor(){document.body.classList.remove(MODAL_CLASS);document.getElementById(BACKDROP_ID)?.remove();const title=document.getElementById("promoV2FormTitle");if(title)title.textContent="Adicionar promoção"}
+  function openPromoEditor(){const form=document.getElementById("promoV2Form");if(!form)return;let backdrop=document.getElementById(BACKDROP_ID);if(!backdrop){backdrop=document.createElement("div");backdrop.id=BACKDROP_ID;backdrop.setAttribute("aria-hidden","true");backdrop.addEventListener("click",()=>document.getElementById("promoV2Cancel")?.click());document.body.appendChild(backdrop)}document.body.classList.add(MODAL_CLASS);const title=document.getElementById("promoV2FormTitle");if(title)title.textContent="Editar promoção";requestAnimationFrame(()=>{form.scrollTop=0})}
+  function digits(value){let number=String(value||"").replace(/\D/g,"");if(number.length===10||number.length===11)number=`55${number}`;return /^55\d{10,11}$/.test(number)?number:""}
+  function phoneMask(value){let local=String(value||"").replace(/\D/g,"");if(local.startsWith("55")&&local.length>11)local=local.slice(2);local=local.slice(0,11);if(local.length<=2)return local;const ddd=local.slice(0,2),body=local.slice(2);if(body.length<=4)return`(${ddd}) ${body}`;if(body.length<=8)return`(${ddd}) ${body.slice(0,4)}-${body.slice(4)}`;return`(${ddd}) ${body.slice(0,5)}-${body.slice(5)}`}
+  function socialUrl(value,network){let raw=String(value||"").trim();if(!raw)return"";if(raw.startsWith("@"))raw=raw.slice(1);if(!/^https?:\/\//i.test(raw)){if(/^[A-Za-z0-9._-]+$/.test(raw))raw=network==="instagram"?`https://www.instagram.com/${raw}/`:`https://www.facebook.com/${raw}/`;else return""}try{const url=new URL(raw);const host=url.hostname.toLowerCase().replace(/^www\./,"");const valid=network==="instagram"?host==="instagram.com":["facebook.com","m.facebook.com","fb.com"].includes(host);if(!valid)return"";return url.toString().slice(0,90)}catch{return""}}
+  async function getPromos(){const response=await fetch("/api/promos",{cache:"no-store"});if(!response.ok)throw new Error("Não foi possível carregar as configurações.");const data=await response.json();return Array.isArray(data?.promotions)?data.promotions:[]}
+  async function postPromos(promotions){if(typeof api!=="function")throw new Error("Painel ainda está carregando.");return api("/api/promos",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({promotions})})}
+  function readSystem(promotions){const item=promotions.find((promo)=>String(promo?.id||"")===SETTINGS_ID);if(!item?.description)return{r:"",f:"",i:""};try{const parsed=JSON.parse(item.description);return{r:digits(parsed?.r),f:String(parsed?.f||""),i:String(parsed?.i||"")}}catch{return{r:"",f:"",i:""}}}
+  function hideLegacyAndNoise(){const legacy=document.getElementById("businessWhatsappCard");if(legacy){legacy.dataset.legacyContactHidden="1";const input=legacy.querySelector("#businessWhatsappInput");if(input)input.id="legacyBusinessWhatsappInput"}document.querySelectorAll("#robotPanel .robot-admin-card").forEach((card)=>{if(/Mensagens automáticas/i.test(card.textContent||""))card.remove()});document.querySelector(".robot-stability-note")?.remove();document.querySelector(".security-note")?.remove()}
+  function cleanPromoUi(){const visible=document.getElementById("promoV2Visible");if(visible){visible.checked=true;const label=visible.closest("label");if(label)label.style.display="none"}document.querySelectorAll("[data-promo-toggle-visible]").forEach((button)=>button.style.display="none");document.querySelectorAll(`[data-promo-id="${SETTINGS_ID}"]`).forEach((card)=>card.style.display="none");const list=document.getElementById("promoV2List"),count=document.getElementById("promoV2Count");if(list&&count){const real=Array.from(list.querySelectorAll(".promo-v2-item")).filter((card)=>card.dataset.promoId!==SETTINGS_ID).length;count.textContent=real===1?"1 promoção":`${real} promoções`}}
+  async function migrateVisiblePromos(){if(visibilityMigrated||typeof api!=="function")return;visibilityMigrated=true;try{const promotions=await getPromos();let changed=false;const next=promotions.map((promo)=>{if(String(promo.id)===SETTINGS_ID||promo.active!==false)return promo;changed=true;return{...promo,active:true}});if(changed)await postPromos(next)}catch{visibilityMigrated=false}}
+  async function loadContactSettings(card){if(settingsLoaded)return;settingsLoaded=true;try{const[contactResponse,promotions]=await Promise.all([fetch("/api/business-contact",{cache:"no-store"}),getPromos()]);const contact=await contactResponse.json();const system=readSystem(promotions);card.querySelector("#customerWhatsappV3").value=contact.whatsappDisplay||phoneMask(contact.whatsappNumber||"");card.querySelector("#robotWhatsappV3").value=phoneMask(system.r);card.querySelector("#facebookV3").value=system.f;card.querySelector("#instagramV3").value=system.i;const pair=document.getElementById("robotPairPhone");if(pair&&system.r)pair.value=phoneMask(system.r)}catch(error){card.querySelector("#contactSocialStatus").className="status error";card.querySelector("#contactSocialStatus").textContent=error.message||"Não foi possível carregar os contatos.";settingsLoaded=false}}
+  function ensureContactCard(){const host=document.getElementById("robotPanel");if(!host)return;hideLegacyAndNoise();let card=document.getElementById("contactSocialCardV3");if(!card){card=document.createElement("section");card.id="contactSocialCardV3";card.className="robot-admin-card";card.innerHTML=`<div class="robot-admin-header"><div><h2>WhatsApp e redes sociais</h2><p>Separe o atendimento dos clientes do número usado pelo robô.</p></div></div><div class="contact-social-grid"><label>WhatsApp de atendimento<input id="customerWhatsappV3" type="tel" inputmode="tel" maxlength="16" placeholder="(92) 99999-9999"><small class="contact-help">É o número aberto no ícone do WhatsApp e o número da lanchonete que recebe os pedidos.</small></label><label>WhatsApp do robô (opcional)<input id="robotWhatsappV3" type="tel" inputmode="tel" maxlength="16" placeholder="(92) 99999-9999"><small class="contact-help">Pode ser outro número e será usado para o pareamento do robô.</small></label><label>Facebook<input id="facebookV3" type="text" maxlength="90" placeholder="facebook.com/sualanchonete ou @usuario"></label><label>Instagram<input id="instagramV3" type="text" maxlength="90" placeholder="instagram.com/sualanchonete ou @usuario"></label></div><div class="robot-actions"><button type="button" class="admin-primary" id="saveContactSocialV3">Salvar contatos e redes</button></div><p class="status" id="contactSocialStatus" aria-live="polite"></p>`;host.prepend(card);card.querySelectorAll('input[type="tel"]').forEach((input)=>input.addEventListener("input",()=>input.value=phoneMask(input.value)));card.querySelector("#saveContactSocialV3").addEventListener("click",async()=>{const status=card.querySelector("#contactSocialStatus"),button=card.querySelector("#saveContactSocialV3"),customer=digits(card.querySelector("#customerWhatsappV3").value),robotRaw=card.querySelector("#robotWhatsappV3").value.trim(),robot=robotRaw?digits(robotRaw):"",fbRaw=card.querySelector("#facebookV3").value.trim(),igRaw=card.querySelector("#instagramV3").value.trim(),fb=fbRaw?socialUrl(fbRaw,"facebook"):"",ig=igRaw?socialUrl(igRaw,"instagram"):"";if(!customer){status.className="status error";status.textContent="Informe um WhatsApp de atendimento válido.";return}if(robotRaw&&!robot){status.className="status error";status.textContent="Informe um WhatsApp do robô válido.";return}if(fbRaw&&!fb){status.className="status error";status.textContent="Confira o Facebook informado.";return}if(igRaw&&!ig){status.className="status error";status.textContent="Confira o Instagram informado.";return}button.disabled=true;status.className="status";status.textContent="Salvando...";try{await api("/api/business-contact",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({whatsappNumber:customer})});const promotions=await getPromos();const real=promotions.filter((promo)=>String(promo.id)!==SETTINGS_ID);real.push({id:SETTINGS_ID,title:"Configuração interna",description:JSON.stringify({r:robot,f:fb,i:ig}),image:"",price:0,active:false,orderEnabled:false});await postPromos(real);const pair=document.getElementById("robotPairPhone");if(pair)pair.value=phoneMask(robot);status.className="status ok";status.textContent="Contatos e redes atualizados.";cleanPromoUi()}catch(error){status.className="status error";status.textContent=error.message||"Não foi possível salvar."}finally{button.disabled=false}});loadContactSettings(card)}const pair=document.getElementById("robotPairPhone"),robot=card.querySelector("#robotWhatsappV3")?.value;if(pair&&robot&&!pair.matches(":focus"))pair.value=phoneMask(robot)}
+  function installStatusObserver(){const status=document.getElementById("promoStatus");if(!status||status.dataset.layoutFixObserved==="1")return;status.dataset.layoutFixObserved="1";new MutationObserver(()=>{if(document.body.classList.contains(MODAL_CLASS)&&status.classList.contains("ok")&&/promoção atualizada/i.test(String(status.textContent||"")))closePromoEditor()}).observe(status,{childList:true,subtree:true,characterData:true,attributes:true,attributeFilter:["class"]})}
   installStyles();
-  document.addEventListener("click", (event) => {
-    const edit = event.target.closest?.("[data-promo-edit]");
-    if (edit) { setTimeout(() => { openPromoEditor(); installStatusObserver(); }, 0); return; }
-    const cancel = event.target.closest?.("#promoV2Cancel");
-    if (cancel) setTimeout(closePromoEditor, 0);
-  });
-  document.addEventListener("keydown", (event) => {
-    if (event.key !== "Escape" || !document.body.classList.contains(MODAL_CLASS)) return;
-    event.preventDefault();
-    const imageEditor = document.querySelector(".image-editor-backdrop:not([hidden])");
-    if (imageEditor) return;
-    const cancel = document.getElementById("promoV2Cancel");
-    if (cancel && !cancel.hidden) cancel.click(); else closePromoEditor();
-  });
-  let tries = 0;
-  const timer = setInterval(() => { tries += 1; const ready = installStatusObserver(); if (ready || tries > 80) clearInterval(timer); }, 250);
+  document.addEventListener("submit",(event)=>{if(event.target?.id==="promoV2Form"){const visible=document.getElementById("promoV2Visible");if(visible)visible.checked=true}},true);
+  document.addEventListener("click",(event)=>{const edit=event.target.closest?.("[data-promo-edit]");if(edit&&edit.closest?.("[data-promo-id]")?.dataset.promoId!==SETTINGS_ID)setTimeout(()=>{openPromoEditor();installStatusObserver()},0);const cancel=event.target.closest?.("#promoV2Cancel");if(cancel)setTimeout(closePromoEditor,0)});
+  document.addEventListener("keydown",(event)=>{if(event.key!=="Escape"||!document.body.classList.contains(MODAL_CLASS))return;if(document.querySelector(".image-editor-backdrop:not([hidden])"))return;event.preventDefault();document.getElementById("promoV2Cancel")?.click()});
+  const apply=()=>{cleanPromoUi();ensureContactCard();hideLegacyAndNoise();installStatusObserver()};apply();new MutationObserver(apply).observe(document.body,{childList:true,subtree:true});setTimeout(migrateVisiblePromos,1800);
 })();
