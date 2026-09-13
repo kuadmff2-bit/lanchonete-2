@@ -11,7 +11,8 @@
   const token=typeof getAdminAppToken==="function"?getAdminAppToken():""; if(!token)return; adminAppToken=token;
   const loginPanel=document.querySelector("#loginPanel"),adminApp=document.querySelector("#adminApp"),logoutButton=document.querySelector("#logoutButton");
   if(loginPanel)loginPanel.hidden=true;if(adminApp)adminApp.hidden=false;if(logoutButton)logoutButton.hidden=true;
-  (async()=>{try{const orders=await api("/api/orders");if(typeof renderDashboard==="function")renderDashboard(orders);if(typeof loadProducts==="function"&&typeof loadPromotion==="function")await Promise.all([loadProducts(),loadPromotion()])}catch(error){if(typeof setStatus==="function")setStatus("#dashboardStatus",error.message||"Não foi possível abrir o painel administrativo.","error")}})();
+  document.documentElement.dataset.apkReady="1";
+  (async()=>{try{const orders=await api("/api/orders");if(typeof renderDashboard==="function")renderDashboard(orders);const tasks=[];if(typeof loadProducts==="function")tasks.push(Promise.resolve(loadProducts()));if(typeof loadPromotion==="function")tasks.push(Promise.resolve(loadPromotion()));if(tasks.length)await Promise.allSettled(tasks)}catch(error){if(typeof setStatus==="function")setStatus("#dashboardStatus",error.message||"Não foi possível atualizar o painel.","error")}finally{document.documentElement.dataset.apkReady="1"}})();
 })();
 (() => {
   const loadScript=(src,key)=>{if(document.querySelector(`script[${key}]`))return;const s=document.createElement("script");s.src=src;s.defer=true;s.setAttribute(key,"1");document.body.appendChild(s)};
