@@ -15,6 +15,7 @@
   (async()=>{try{const orders=await api("/api/orders");if(typeof renderDashboard==="function")renderDashboard(orders);const tasks=[];if(typeof loadProducts==="function")tasks.push(Promise.resolve(loadProducts()));if(typeof loadPromotion==="function")tasks.push(Promise.resolve(loadPromotion()));if(tasks.length)await Promise.allSettled(tasks)}catch(error){if(typeof setStatus==="function")setStatus("#dashboardStatus",error.message||"Não foi possível atualizar o painel.","error")}finally{document.documentElement.dataset.apkReady="1"}})();
 })();
 (() => {
+  const robotHeading=document.querySelector("#tab-robot .panel-heading h2");if(robotHeading)robotHeading.remove();
   const loadScript=(src,key)=>{if(document.querySelector(`script[${key}]`))return;const s=document.createElement("script");s.src=src;s.defer=true;s.setAttribute(key,"1");document.body.appendChild(s)};
   loadScript("admin-robot.js","data-admin-robot");
   loadScript("admin-whatsapp.js","data-admin-whatsapp");
