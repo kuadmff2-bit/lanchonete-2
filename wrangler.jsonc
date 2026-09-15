@@ -1,18 +1,10 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "lanchonete-2",
-  "main": "worker-relay.js",
-  "compatibility_date": "2026-08-27",
-  "keep_vars": true,
+  "main": "worker-simple.js",
+  "compatibility_date": "2026-09-15",
   "vars": {
     "ADMIN_PASSWORD_SHA256": "3c1ff0e77623f56bdf0eda50d37b7c3568ba4c0a17d87763c50d46fe8dcfae1d",
-    "ROBOT_WEBHOOK_TOKEN_SHA256": "45e6e5656d94c7a39323efbd247cb6ac688a336419dc30c9edefb543617cae0f",
-    "ROBOT_SERVICE_URL": "https://lanchonete-2-whatsapp-production.up.railway.app/instances/lanchonete-2-whatsapp",
-    "PUSH_RELAY_URL": "https://lanchonete-site.kuadmff2.workers.dev/api/push/relay",
-    "FCM_PROJECT_ID": "lanchonete-admin",
-    "FCM_ANDROID_API_KEY": "AIzaSyBxBWHnh0y5sExe81CIoQ6cV6czDFIHDGs",
-    "FCM_ANDROID_APP_ID": "1:35803389315:android:2d8d6884073057cb05aab6",
-    "FCM_SENDER_ID": "35803389315",
     "SITE_STYLE_VARIANT": "bold",
     "SITE_DEFAULT_NAME": "Lanchonete 2",
     "SITE_DEFAULT_SUBTITLE": "Peça pelo celular",
@@ -25,11 +17,6 @@
     "SITE_DEFAULT_TEXT": "#10204b",
     "SITE_DEFAULT_HERO_IMAGE": "/assets/hero-lanchonete-2.webp"
   },
-  "kv_namespaces": [
-    {
-      "binding": "PROMOTIONS"
-    }
-  ],
   "durable_objects": {
     "bindings": [
       {
