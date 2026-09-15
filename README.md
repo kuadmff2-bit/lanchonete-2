@@ -1,35 +1,47 @@
 # Lanchonete 2
 
-Cardápio digital, painel administrativo, APK Android e WhatsApp transacional.
+Cardápio digital e painel administrativo em um único projeto Cloudflare.
 
-## Cardápio
+## O que funciona sem API externa
 
-- produtos, bebidas, promoções e carrinho;
-- entrega ou retirada e formas de pagamento;
-- pedido registrado no painel;
-- pedido completo enviado automaticamente ao WhatsApp da lanchonete;
-- confirmação enviada automaticamente ao cliente;
-- modos claro e escuro com a paleta azul e amarela;
-- prévia do administrador sem registrar, contar ou enviar pedidos.
+- cardápio com produtos, bebidas, fotos e disponibilidade;
+- carrinho, entrega ou retirada e formas de pagamento;
+- promoções com pedido direto;
+- pedidos salvos e exibidos no painel administrativo;
+- totais e histórico de pedidos;
+- alteração de status dos pedidos;
+- personalização de nome, textos, logo, capa e fundo;
+- modos claro e escuro;
+- WhatsApp apenas como link de contato.
 
-## Painel e APK
+O funcionamento principal usa somente **Cloudflare Workers + Durable Objects com armazenamento SQLite**. Não é necessário criar Firebase, Railway, Supabase, banco externo, API de WhatsApp ou chave de API para o cardápio funcionar.
 
-A área administrativa fica em `/admin.html`. O dono acompanha pedidos e valores, altera status, gerencia produtos, fotos, promoções, número comercial, nome, textos, logo, capa e imagem de fundo.
+## Arquitetura simples
 
-O APK da Lanchonete 2 abre diretamente, sem pedir a senha do painel web. Ele usa uma chave exclusiva inserida durante o build, recebe notificações de novos pedidos e utiliza a mesma marca de hambúrguer azul e amarela no ícone e na tela de carregamento.
+- `worker-simple.js`: única entrada do Worker;
+- `worker.js`: produtos, promoções, pedidos, autenticação e aparência;
+- `storage.js` + `durable-storage.js`: armazenamento interno da própria Cloudflare;
+- `index.html`: cardápio público;
+- `admin.html`: painel administrativo.
 
-O painel aberto no navegador continua protegido pela senha administrativa.
+Os arquivos antigos de robô, push e APK podem continuar no repositório como legado, mas **não participam do deploy atual do site**.
 
-## WhatsApp
+## Publicação
 
-A integração não atende nem responde mensagens recebidas. Ela apenas envia automaticamente:
+O projeto já possui `wrangler.jsonc` pronto. Ao conectar este repositório ao Cloudflare Workers, use:
 
-- o pedido completo para a lanchonete;
-- a confirmação de recebimento para o cliente;
-- pedido confirmado;
-- saiu para entrega ou pronto para retirada;
-- pedido cancelado.
+```bash
+npm run deploy
+```
 
-Veja `ROBOT_SETUP.md` para a configuração do serviço 24 horas e do QR Code.
+ou diretamente:
 
-O deploy do Worker é executado pelo workflow `Deploy Lanchonetes 2 e 3` do repositório principal.
+```bash
+npx wrangler deploy
+```
+
+Não é preciso configurar variáveis de Firebase, Railway, Supabase, WhatsApp ou qualquer API externa.
+
+## Painel
+
+A área administrativa fica em `/admin.html`. O painel do navegador continua protegido pela senha administrativa já configurada no projeto.
