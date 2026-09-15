@@ -35,7 +35,7 @@ const goCheckoutBtn = $("#goCheckout");
 const checkoutModal = $("#checkoutModal");
 const checkoutBackdrop = $("#checkoutBackdrop");
 const checkoutForm = $("#checkoutForm");
-const checkoutButton = checkoutForm.querySelector('.whatsapp-button');
+const checkoutButton = checkoutForm.querySelector(".whatsapp-button");
 const paymentEl = $("#payment");
 const changeWrap = $("#changeWrap");
 const changeFor = $("#changeFor");
@@ -177,7 +177,7 @@ async function registerOrder(formData) {
   };
 
   const data = await submitOrderPayload(payload);
-  return Object.assign(data.order, { _messaging: data.messaging || null });
+  return data.order;
 }
 
 async function submitOrderPayload(payload) {
@@ -189,8 +189,7 @@ async function submitOrderPayload(payload) {
         total: cartDetails().total,
         createdAt: new Date().toISOString(),
         status: "teste"
-      },
-      messaging: { preview: true, sent: false }
+      }
     };
   }
 
@@ -210,15 +209,13 @@ function showOrderSuccess(order) {
   const message = $("#orderSuccessMessage");
   const number = $("#orderSuccessNumber");
 
-  if (previewMode || order?._messaging?.preview) {
+  if (previewMode) {
     title.textContent = "Simulação concluída";
-    message.textContent = "Este pedido de prévia não foi registrado, contabilizado nem enviado pelo WhatsApp.";
+    message.textContent = "Este pedido de prévia não foi registrado nem contabilizado.";
     number.textContent = "Modo de prévia";
   } else {
     title.textContent = "Pedido feito com sucesso!";
-    message.textContent = order?._messaging?.sent === false
-      ? "O pedido foi registrado, mas o WhatsApp automático está temporariamente desconectado."
-      : "Você pode visualizar a confirmação no seu WhatsApp.";
+    message.textContent = "Seu pedido já apareceu no painel da lanchonete.";
     number.textContent = order?.id ? `Pedido ${order.id}` : "";
   }
 
@@ -289,7 +286,6 @@ checkoutForm.addEventListener("submit", async (event) => {
   try {
     const registeredOrder = await registerOrder(formData);
     checkoutButton.textContent = previewMode ? "Simulação concluída" : `Pedido ${registeredOrder.id} enviado`;
-
     cart.clear();
     checkoutForm.reset();
     renderCart();
