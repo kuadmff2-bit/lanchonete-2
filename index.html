@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#1746a2">
-  <meta name="description" content="Cardápio digital da Lanchonete 2. Escolha, monte o pedido e finalize pelo WhatsApp.">
+  <meta name="description" content="Cardápio digital da Lanchonete 2. Escolha, monte o pedido e envie direto para a lanchonete.">
   <title>Lanchonete 2 | Cardápio</title>
   <link id="siteFavicon" rel="icon" href="assets/favicon.svg" type="image/svg+xml">
   <script src="theme-toggle.js"></script>
@@ -17,9 +17,9 @@
 <body>
   <div class="preview-mode-banner" id="previewModeBanner" hidden>
     <strong>Modo de prévia</strong>
-    <span>Você pode testar o cardápio sem registrar ou enviar pedidos reais.</span>
+    <span>Você pode testar o cardápio sem registrar pedidos reais.</span>
   </div>
-<header class="topbar">
+  <header class="topbar">
     <a class="brand" href="#inicio" aria-label="Lanchonete 2 - início" data-brand-home-link>
       <span class="brand-mark"><img class="brand-logo" data-brand-logo src="assets/favicon.svg" alt=""></span>
       <span><strong data-brand-name-upper>LANCHONETE 2</strong><small data-brand-subtitle>Peça pelo celular</small></span>
@@ -30,7 +30,7 @@
     </div>
   </header>
 
-<main id="inicio">
+  <main id="inicio">
     <section class="hero" data-brand-hero>
       <div class="hero-content">
         <span class="eyebrow">CARDÁPIO ABERTO</span>
@@ -130,8 +130,8 @@ Pediu. Chegou.</h1>
       <label id="changeWrap" hidden>Troco para quanto?<input id="changeFor" name="changeFor" inputmode="decimal" placeholder="Ex.: 50,00"></label>
       <label>Observação<textarea id="orderNote" name="orderNote" rows="3" placeholder="Ex.: sem cebola, molho separado..."></textarea></label>
       <div class="checkout-total"><span>Total do pedido</span><strong id="checkoutTotal">R$ 0,00</strong></div>
-      <button class="whatsapp-button" type="submit">Enviar pedido no WhatsApp</button>
-      <p class="form-note">Ao enviar, o pedido chega automaticamente à lanchonete e a confirmação aparece no seu WhatsApp.</p>
+      <button class="whatsapp-button" type="submit">Enviar pedido</button>
+      <p class="form-note">Ao enviar, o pedido aparece direto no painel da lanchonete. O WhatsApp acima continua disponível apenas para contato.</p>
     </form>
   </section>
 
@@ -140,7 +140,7 @@ Pediu. Chegou.</h1>
     <span class="order-success-icon" aria-hidden="true">✓</span>
     <small>PEDIDO ENVIADO</small>
     <h2 id="orderSuccessTitle">Pedido feito com sucesso!</h2>
-    <p id="orderSuccessMessage">Você pode visualizar a confirmação no seu WhatsApp.</p>
+    <p id="orderSuccessMessage">Seu pedido já apareceu no painel da lanchonete.</p>
     <strong id="orderSuccessNumber"></strong>
     <button class="primary-button" id="closeOrderSuccess" type="button">Entendi</button>
   </section>
