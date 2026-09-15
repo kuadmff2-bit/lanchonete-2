@@ -22,7 +22,7 @@ permissions:
   contents: read
 
 jobs:
-  syntax:
+  validate:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -31,3 +31,5 @@ jobs:
           node-version: '22'
       - name: Conferir JavaScript
         run: npm run check
+      - name: Conferir configuração Cloudflare
+        run: npx --yes wrangler@latest deploy --dry-run
